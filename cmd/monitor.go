@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/stopwatch"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"
@@ -56,22 +57,21 @@ type healthCheckMsg struct {
 }
 
 type ServiceHealth struct {
-	Name    string
-	Port    int
-	Status  string
-	Uptime  string
+	Name   string
+	Port   int
+	Status string
 }
 
 // Model holds the dashboard state
 type monitorModel struct {
-	table        table.Model
-	spinner      spinner.Model
-	lastUpdate   time.Time
-	services     []ServiceHealth
-	isChecking   bool
-	width        int
-	height       int
-	startTimes   map[string]time.Time // Track when each service started
+	table      table.Model
+	spinner    spinner.Model
+	lastUpdate time.Time
+	services   []ServiceHealth
+	isChecking bool
+	width      int
+	height     int
+	stopwatches map[string]stopwatch.Model // Stopwatch for each service
 }
 
 func MonitorCommand() *cli.Command {
@@ -133,12 +133,12 @@ func initialMonitorModel() monitorModel {
 		WithStaticFooter("")
 
 	return monitorModel{
-		table:      t,
-		spinner:    s,
-		lastUpdate: time.Now(),
-		services:   []ServiceHealth{},
-		isChecking: false,
-		startTimes: make(map[string]time.Time),
+		table:       t,
+		spinner:     s,
+		lastUpdate:  time.Now(),
+		services:    []ServiceHealth{},
+		isChecking:  false,
+		stopwatches: make(map[string]stopwatch.Model),
 	}
 }
 
@@ -175,34 +175,42 @@ func (m monitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tickCmd()
 
 	case healthCheckMsg:
-		// Update start times for newly running services
+		// Update stopwatches for services
 		for i := range msg.services {
 			svc := &msg.services[i]
 			key := fmt.Sprintf("%s:%d", svc.Name, svc.Port)
 
 			if svc.Status == "running" {
-				// If service just came online, record start time
-				if _, exists := m.startTimes[key]; !exists {
-					m.startTimes[key] = time.Now()
+				// If service just came online, create and start stopwatch
+				if _, exists := m.stopwatches[key]; !exists {
+					sw := stopwatch.NewWithInterval(time.Second)
+					m.stopwatches[key] = sw
+					cmds = append(cmds, sw.Init())
 				}
-				// Calculate uptime
-				uptime := time.Since(m.startTimes[key])
-				svc.Uptime = formatUptime(uptime)
 			} else {
-				// Service is down, remove start time
-				delete(m.startTimes, key)
-				svc.Uptime = "down"
+				// Service is down, remove stopwatch
+				delete(m.stopwatches, key)
 			}
 		}
 
 		m.services = msg.services
 		m.isChecking = false
 		m.table = m.table.WithRows(m.buildTableRows())
-		return m, nil
+		return m, tea.Batch(cmds...)
 
 	case spinner.TickMsg:
 		m.spinner, cmd = m.spinner.Update(msg)
 		cmds = append(cmds, cmd)
+
+	default:
+		// Update all stopwatches
+		for key, sw := range m.stopwatches {
+			updatedSw, swCmd := sw.Update(msg)
+			m.stopwatches[key] = updatedSw
+			if swCmd != nil {
+				cmds = append(cmds, swCmd)
+			}
+		}
 	}
 
 	return m, tea.Batch(cmds...)
@@ -312,6 +320,15 @@ func (m monitorModel) renderServiceList(services []ServiceHealth) string {
 			statusIcon = statusDownStyle.Render("●")
 		}
 
+		// Get uptime from stopwatch
+		key := fmt.Sprintf("%s:%d", svc.Name, svc.Port)
+		var uptimeStr string
+		if sw, exists := m.stopwatches[key]; exists && svc.Status == "running" {
+			uptimeStr = formatUptime(sw.Elapsed())
+		} else {
+			uptimeStr = "down"
+		}
+
 		// Service line: ● Service Name       :8080   [1.2s]
 		var line string
 		if svc.Port == 0 {
@@ -319,14 +336,14 @@ func (m monitorModel) renderServiceList(services []ServiceHealth) string {
 			line = fmt.Sprintf("%s %-25s         [%s]",
 				statusIcon,
 				svc.Name,
-				svc.Uptime,
+				uptimeStr,
 			)
 		} else {
 			line = fmt.Sprintf("%s %-25s :%-6d [%s]",
 				statusIcon,
 				svc.Name,
 				svc.Port,
-				svc.Uptime,
+				uptimeStr,
 			)
 		}
 
@@ -345,11 +362,20 @@ func (m monitorModel) buildTableRows() []table.Row {
 			statusIcon = "✗"
 		}
 
+		// Get uptime from stopwatch
+		key := fmt.Sprintf("%s:%d", svc.Name, svc.Port)
+		var uptimeStr string
+		if sw, exists := m.stopwatches[key]; exists && svc.Status == "running" {
+			uptimeStr = formatUptime(sw.Elapsed())
+		} else {
+			uptimeStr = "down"
+		}
+
 		rows = append(rows, table.NewRow(table.RowData{
 			"status":  statusIcon,
 			"name":    svc.Name,
 			"port":    fmt.Sprintf(":%d", svc.Port),
-			"latency": svc.Uptime,
+			"latency": uptimeStr,
 		}))
 	}
 	return rows
@@ -372,7 +398,6 @@ func checkHealthCmd() tea.Cmd {
 			Name:   "Docker Desktop",
 			Port:   0, // Docker Desktop doesn't have a specific port
 			Status: getStatus(dockerRunning),
-			Uptime: "", // Will be set in Update function
 		})
 
 		// Check MongoDB
@@ -381,7 +406,6 @@ func checkHealthCmd() tea.Cmd {
 			Name:   "MongoDB",
 			Port:   config.MongoDevPort,
 			Status: getStatus(mongoStatus.Open),
-			Uptime: "", // Will be set in Update function
 		})
 
 		// Check Angular
@@ -390,7 +414,6 @@ func checkHealthCmd() tea.Cmd {
 			Name:   "Angular",
 			Port:   config.AngularPort,
 			Status: getStatus(angularStatus.Open),
-			Uptime: "", // Will be set in Update function
 		})
 
 		// Check API services
@@ -400,7 +423,6 @@ func checkHealthCmd() tea.Cmd {
 				Name:   svc.Name,
 				Port:   svc.Port,
 				Status: getStatus(status.Open),
-				Uptime: "", // Will be set in Update function
 			})
 		}
 
