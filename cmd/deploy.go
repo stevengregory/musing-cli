@@ -70,10 +70,10 @@ func deployData(collection, env string) error {
 		ui.Success("MongoDB is running")
 	}
 
-	// Get project root (go up from musing-cli directory)
-	cwd, _ := os.Getwd()
-	projectRoot := filepath.Dir(cwd)
-	dataDir := filepath.Join(projectRoot, "data")
+	// Get data directory from main repo (not worktrees)
+	home := os.Getenv("HOME")
+	mainRepoPath := filepath.Join(home, "Repos", "steven")
+	dataDir := filepath.Join(mainRepoPath, "data")
 
 	fmt.Println()
 
