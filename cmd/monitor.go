@@ -189,7 +189,7 @@ func (m monitorModel) View() string {
 	var s string
 
 	// Header
-	s += headerStyle.Render("👾 Development Stack - Live Monitor")
+	s += headerStyle.Render("Development Stack - Live Monitor")
 	s += "\n"
 
 	// Timestamp at top

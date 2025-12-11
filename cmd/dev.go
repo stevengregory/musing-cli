@@ -138,7 +138,7 @@ func isWorktree(path string) bool {
 }
 
 func startServices(rebuild, shouldDeployData, followLogs bool) error {
-	ui.Header("👾 Development Stack")
+	ui.Header("Development Stack")
 
 	// Change to project root directory (parent of musing-cli)
 	if err := changeToProjectRoot(); err != nil {
