@@ -5,11 +5,23 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/stevengregory/musing-cli/internal/config"
 	"github.com/stevengregory/musing-cli/internal/health"
 	"github.com/stevengregory/musing-cli/internal/mongo"
 	"github.com/stevengregory/musing-cli/internal/ui"
 	"github.com/urfave/cli/v2"
+)
+
+// Styles using Lip Gloss (matching monitor.go)
+var (
+	deployHeaderStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#FF00FF")). // Magenta/purple
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#FF00FF")).
+			Padding(0, 2).
+			MarginBottom(1)
 )
 
 func DeployCommand() *cli.Command {
@@ -36,8 +48,7 @@ func DeployCommand() *cli.Command {
 }
 
 func deployData(collection, env string) error {
-	ui.Header(fmt.Sprintf("📦 MongoDB Deployment - %s", env))
-	fmt.Println()
+	fmt.Println(deployHeaderStyle.Render(fmt.Sprintf("MongoDB Deployment - %s", env)))
 
 	var mongoURI string
 	var port int
