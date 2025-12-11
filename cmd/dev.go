@@ -14,6 +14,17 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// Styles using Lip Gloss (matching monitor.go)
+var (
+	devHeaderStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#FF00FF")). // Magenta/purple
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#FF00FF")).
+			Padding(0, 2).
+			MarginBottom(1)
+)
+
 func DevCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "dev",
@@ -49,8 +60,7 @@ func DevCommand() *cli.Command {
 }
 
 func stopServices() error {
-	ui.Header("Stopping Development Stack")
-	fmt.Println()
+	fmt.Println(devHeaderStyle.Render("Stopping Development Stack"))
 
 	// Change to project root directory
 	if err := changeToProjectRoot(); err != nil {
@@ -138,7 +148,7 @@ func isWorktree(path string) bool {
 }
 
 func startServices(rebuild, shouldDeployData, followLogs bool) error {
-	ui.Header("Development Stack")
+	fmt.Println(devHeaderStyle.Render("Development Stack"))
 
 	// Change to project root directory (parent of musing-cli)
 	if err := changeToProjectRoot(); err != nil {
