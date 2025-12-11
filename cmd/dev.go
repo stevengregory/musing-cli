@@ -68,47 +68,77 @@ func stopServices() error {
 	return nil
 }
 
-// changeToProjectRoot changes the working directory to the project root
-// (the directory containing compose.yaml)
+// changeToProjectRoot changes the working directory to the main project root
+// (the directory containing compose.yaml), intelligently handling git worktrees
 func changeToProjectRoot() error {
-	// Check if compose.yaml exists in current directory
-	if _, err := os.Stat("compose.yaml"); err == nil {
-		return nil
+	// Strategy: Always target ~/Repos/steven (the main repo), never worktrees
+	home := os.Getenv("HOME")
+	mainRepoPath := filepath.Join(home, "Repos", "steven")
+
+	// Check if main repo exists and has compose.yaml
+	composePath := filepath.Join(mainRepoPath, "compose.yaml")
+	if _, err := os.Stat(composePath); err == nil {
+		return os.Chdir(mainRepoPath)
 	}
 
-	// Check if compose.yaml exists in parent directory
-	if _, err := os.Stat("../compose.yaml"); err == nil {
-		return os.Chdir("..")
-	}
-
-	// Search for compose.yaml in sibling directories (one level up, then back down)
+	// Fallback: Search for compose.yaml starting from current directory
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
 
+	// Check current directory
+	if _, err := os.Stat("compose.yaml"); err == nil {
+		// If we're in a worktree, skip it and continue searching
+		if !isWorktree(cwd) {
+			return nil
+		}
+	}
+
+	// Check parent directory
 	parent := filepath.Dir(cwd)
+	parentCompose := filepath.Join(parent, "compose.yaml")
+	if _, err := os.Stat(parentCompose); err == nil {
+		if !isWorktree(parent) {
+			return os.Chdir(parent)
+		}
+	}
+
+	// Search sibling directories
 	entries, err := os.ReadDir(parent)
 	if err != nil {
 		return fmt.Errorf("could not read parent directory: %w", err)
 	}
 
-	// Look for compose.yaml in sibling directories
 	for _, entry := range entries {
 		if entry.IsDir() {
 			siblingPath := filepath.Join(parent, entry.Name())
-			composePath := filepath.Join(siblingPath, "compose.yaml")
-			if _, err := os.Stat(composePath); err == nil {
-				return os.Chdir(siblingPath)
+			siblingCompose := filepath.Join(siblingPath, "compose.yaml")
+			if _, err := os.Stat(siblingCompose); err == nil {
+				if !isWorktree(siblingPath) {
+					return os.Chdir(siblingPath)
+				}
 			}
 		}
 	}
 
-	return fmt.Errorf("could not find compose.yaml in current directory, parent, or sibling directories")
+	return fmt.Errorf("could not find compose.yaml in main repository")
+}
+
+// isWorktree checks if a directory is a git worktree (not the main repository)
+func isWorktree(path string) bool {
+	// Check if .git is a file (worktrees have .git as a file pointing to the real git dir)
+	gitPath := filepath.Join(path, ".git")
+	info, err := os.Stat(gitPath)
+	if err != nil {
+		return false
+	}
+	// In a worktree, .git is a file. In main repo, .git is a directory
+	return !info.IsDir()
 }
 
 func startServices(rebuild, shouldDeployData, followLogs bool) error {
-	ui.Header("🚀 Development Stack")
+	ui.Header("👾 Development Stack")
 
 	// Change to project root directory (parent of musing-cli)
 	if err := changeToProjectRoot(); err != nil {

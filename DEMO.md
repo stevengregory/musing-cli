@@ -32,7 +32,7 @@ go build -o musing
 ```
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║                🚀 Development Stack Status                 ║
+║                👾 Development Stack Status                 ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
@@ -72,7 +72,7 @@ API Services
 ```
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║           🚀 Development Stack - Live Monitor              ║
+║           👾 Development Stack - Live Monitor              ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
@@ -116,7 +116,7 @@ Press Ctrl+C to stop monitoring
 ```
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║                   🚀 Development Stack                     ║
+║                   👾 Development Stack                     ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
@@ -236,7 +236,7 @@ Continue anyway? (y/N) y
 
 ```go
 // Beautiful headers
-ui.Header("🚀 Development Stack")
+ui.Header("👾 Development Stack")
 
 // Styled messages
 ui.Success("Services started")
@@ -356,7 +356,7 @@ musing build --analyze
 5. 📦 **Portable** - Single binary, works anywhere
 6. 🎨 **Beautiful** - Gum styling + Bubbles animations
 7. 🔧 **Maintainable** - Clean Go code vs bash spaghetti
-8. 🚀 **Extensible** - Easy to add new commands
+8. 👾 **Extensible** - Easy to add new commands
 
 ## Conclusion
 

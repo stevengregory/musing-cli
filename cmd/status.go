@@ -37,7 +37,7 @@ func StatusCommand() *cli.Command {
 }
 
 func showStatus() error {
-	ui.Header("🚀 Development Stack Status")
+	ui.Header("👾 Development Stack Status")
 
 	// Check core services
 	fmt.Println()
@@ -109,7 +109,7 @@ func runWatchMode() error {
 
 func renderWatchScreen() {
 	// Header
-	ui.Header("🚀 Development Stack - Live Monitor")
+	ui.Header("👾 Development Stack - Live Monitor")
 
 	// Current time
 	fmt.Println()

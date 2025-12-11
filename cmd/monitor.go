@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/stopwatch"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"
@@ -71,7 +70,6 @@ type monitorModel struct {
 	isChecking bool
 	width      int
 	height     int
-	stopwatches map[string]stopwatch.Model // Stopwatch for each service
 }
 
 func MonitorCommand() *cli.Command {
@@ -133,12 +131,11 @@ func initialMonitorModel() monitorModel {
 		WithStaticFooter("")
 
 	return monitorModel{
-		table:       t,
-		spinner:     s,
-		lastUpdate:  time.Now(),
-		services:    []ServiceHealth{},
-		isChecking:  false,
-		stopwatches: make(map[string]stopwatch.Model),
+		table:      t,
+		spinner:    s,
+		lastUpdate: time.Now(),
+		services:   []ServiceHealth{},
+		isChecking: false,
 	}
 }
 
@@ -175,42 +172,14 @@ func (m monitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tickCmd()
 
 	case healthCheckMsg:
-		// Update stopwatches for services
-		for i := range msg.services {
-			svc := &msg.services[i]
-			key := fmt.Sprintf("%s:%d", svc.Name, svc.Port)
-
-			if svc.Status == "running" {
-				// If service just came online, create and start stopwatch
-				if _, exists := m.stopwatches[key]; !exists {
-					sw := stopwatch.NewWithInterval(time.Second)
-					m.stopwatches[key] = sw
-					cmds = append(cmds, sw.Init())
-				}
-			} else {
-				// Service is down, remove stopwatch
-				delete(m.stopwatches, key)
-			}
-		}
-
 		m.services = msg.services
 		m.isChecking = false
 		m.table = m.table.WithRows(m.buildTableRows())
-		return m, tea.Batch(cmds...)
+		return m, nil
 
 	case spinner.TickMsg:
 		m.spinner, cmd = m.spinner.Update(msg)
 		cmds = append(cmds, cmd)
-
-	default:
-		// Update all stopwatches
-		for key, sw := range m.stopwatches {
-			updatedSw, swCmd := sw.Update(msg)
-			m.stopwatches[key] = updatedSw
-			if swCmd != nil {
-				cmds = append(cmds, swCmd)
-			}
-		}
 	}
 
 	return m, tea.Batch(cmds...)
@@ -220,7 +189,7 @@ func (m monitorModel) View() string {
 	var s string
 
 	// Header
-	s += headerStyle.Render("🚀 Development Stack - Live Monitor")
+	s += headerStyle.Render("👾 Development Stack - Live Monitor")
 	s += "\n"
 
 	// Timestamp at top
@@ -320,30 +289,19 @@ func (m monitorModel) renderServiceList(services []ServiceHealth) string {
 			statusIcon = statusDownStyle.Render("●")
 		}
 
-		// Get uptime from stopwatch
-		key := fmt.Sprintf("%s:%d", svc.Name, svc.Port)
-		var uptimeStr string
-		if sw, exists := m.stopwatches[key]; exists && svc.Status == "running" {
-			uptimeStr = formatUptime(sw.Elapsed())
-		} else {
-			uptimeStr = "down"
-		}
-
-		// Service line: ● Service Name       :8080   [1.2s]
+		// Service line: ● Service Name       :8080
 		var line string
 		if svc.Port == 0 {
 			// Docker Desktop doesn't have a port
-			line = fmt.Sprintf("%s %-25s         [%s]",
+			line = fmt.Sprintf("%s %-25s",
 				statusIcon,
 				svc.Name,
-				uptimeStr,
 			)
 		} else {
-			line = fmt.Sprintf("%s %-25s :%-6d [%s]",
+			line = fmt.Sprintf("%s %-25s :%-6d",
 				statusIcon,
 				svc.Name,
 				svc.Port,
-				uptimeStr,
 			)
 		}
 
@@ -362,20 +320,11 @@ func (m monitorModel) buildTableRows() []table.Row {
 			statusIcon = "✗"
 		}
 
-		// Get uptime from stopwatch
-		key := fmt.Sprintf("%s:%d", svc.Name, svc.Port)
-		var uptimeStr string
-		if sw, exists := m.stopwatches[key]; exists && svc.Status == "running" {
-			uptimeStr = formatUptime(sw.Elapsed())
-		} else {
-			uptimeStr = "down"
-		}
-
 		rows = append(rows, table.NewRow(table.RowData{
 			"status":  statusIcon,
 			"name":    svc.Name,
 			"port":    fmt.Sprintf(":%d", svc.Port),
-			"latency": uptimeStr,
+			"latency": svc.Status,
 		}))
 	}
 	return rows
@@ -442,21 +391,4 @@ func getLatency(status health.PortStatus) string {
 		return "timeout"
 	}
 	return health.FormatLatency(status.Latency)
-}
-
-// formatUptime formats uptime duration for display
-func formatUptime(d time.Duration) string {
-	totalSeconds := int(d.Seconds())
-
-	hours := totalSeconds / 3600
-	minutes := (totalSeconds % 3600) / 60
-	seconds := totalSeconds % 60
-
-	if hours > 0 {
-		return fmt.Sprintf("%dh %02dm %02ds", hours, minutes, seconds)
-	} else if minutes > 0 {
-		return fmt.Sprintf("%dm %02ds", minutes, seconds)
-	} else {
-		return fmt.Sprintf("%02ds", seconds)
-	}
 }
