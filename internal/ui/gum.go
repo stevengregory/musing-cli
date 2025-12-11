@@ -28,6 +28,69 @@ func Header(text string) {
 	)
 }
 
+// HeaderGradient renders a header with multi-color gradient effect
+func HeaderGradient(text string) {
+	// Split text into words for gradient effect
+	words := strings.Fields(text)
+	colors := []string{"212", "213", "177", "141"} // Magenta to purple gradient
+
+	styledWords := make([]string, len(words))
+	for i, word := range words {
+		color := colors[i%len(colors)]
+		styledWords[i] = colorText(word, color)
+	}
+
+	fullText := strings.Join(styledWords, " ")
+
+	// Render with border but no color (colors are in the text itself)
+	Style(fullText,
+		"--border", "double",
+		"--border-foreground", "212",
+		"--padding", "1 2",
+		"--align", "center",
+		"--width", "60",
+	)
+}
+
+// HeaderMinimal renders a clean header with top/bottom borders only
+func HeaderMinimal(text string) {
+	// Simple divider line
+	divider := strings.Repeat("─", 60)
+
+	fmt.Println()
+	Style(divider, "--foreground", "212")
+	Style(text,
+		"--foreground", "212",
+		"--bold",
+		"--align", "center",
+		"--width", "60",
+	)
+	Style(divider, "--foreground", "212")
+	fmt.Println()
+}
+
+// HeaderBold renders a bold header with underline
+func HeaderBold(text string) {
+	Style(text,
+		"--foreground", "212",
+		"--bold",
+		"--underline",
+		"--align", "center",
+		"--width", "60",
+		"--margin", "1 0",
+	)
+}
+
+// colorText wraps text with gum style inline color
+func colorText(text string, color string) string {
+	cmd := exec.Command("gum", "style", "--foreground", color, text)
+	output, err := cmd.Output()
+	if err != nil {
+		return text
+	}
+	return strings.TrimSpace(string(output))
+}
+
 // Success renders a success message
 func Success(text string) {
 	Style(fmt.Sprintf("✓ %s", text),
