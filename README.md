@@ -1,23 +1,18 @@
 # Musing CLI
 
-Beautiful command-line tooling for the musing-tu development stack, built with Go + Charm (Gum & Bubbles).
+Professional command-line tooling for the musing-tu development stack, built with Go and the Charm Bracelet ecosystem (Bubble Tea, Huh, Lip Gloss).
 
 ## Features
 
-- ✨ **Beautiful UX** - Styled output with Gum, animated spinners with Bubbles
+- 🎨 **Professional TUI** - Native Bubble Tea interface with Lip Gloss styling
 - ⚡ **Blazing Fast** - Native Go binary with 1-3ms startup time
-- 📊 **Live Monitoring** - Real-time service health dashboard
-- 🐳 **Docker Integration** - Seamless Docker Compose management
+- 📊 **Live Monitoring** - Real-time service health dashboard with auto-refresh
+- 🐳 **Docker Integration** - Seamless Docker Desktop and Compose management
+- 🔒 **Production Safety** - Interactive confirmation prompts for production deployments
+- 🌐 **SSH Tunnel Monitoring** - Track DigitalOcean production tunnel status
 - 🎯 **Type Safe** - Go's type system prevents runtime errors
 
 ## Installation
-
-### Prerequisites
-
-```bash
-# Install Gum (required for beautiful styling)
-brew install gum
-```
 
 ### Build from Source
 
@@ -33,43 +28,53 @@ go build -o musing
 sudo cp musing /usr/local/bin/
 
 # Now use from anywhere
-musing status
+musing dev
 ```
 
 ## Commands
 
-### `musing status`
+### `musing monitor`
 
-Show current development stack status.
+Live monitoring dashboard with real-time health checks (updates every 3 seconds).
 
 ```bash
-# One-time status check
-musing status
-
-# Live monitoring (updates every 2s)
-musing status --watch
+musing monitor
 ```
+
+**Features:**
+- 📊 Real-time service health monitoring
+- 🎨 Organized sections: Docker → Database → API Services → Frontend → SSH Tunnel(s)
+- 🔴🟢 Visual status indicators (● green = running, ● red = down)
+- ⌨️ Keyboard controls: `q`, `Ctrl+C`, or `Esc` to exit
+- 🔄 Auto-refresh every 3 seconds
 
 **Output:**
 ```
-╔════════════════════════════════════════════════════════════╗
-║                                                            ║
-║                👾 Development Stack Status                 ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
+╭──────────────────────────────────────────────╮
+│  Development Stack - Live Monitor           │
+╰──────────────────────────────────────────────╯
 
-Core Services
+Updated: 14:32:15 PST
 
-✓ MongoDB              :27018 [5ms]
-✓ Frontend             :3000  [124ms]
+━━━ Docker ━━━
+  ● Docker Desktop
 
-API Services
+━━━ Database ━━━
+  ● MongoDB               :27018
 
-✓ networks-api         :8085  [45ms]
-✓ random-facts-api     :8082  [38ms]
-✗ alcohol-free-api     :8081  [timeout]
-✓ random-quotes-api    :8083  [52ms]
-...
+━━━ API Services (12) ━━━
+  ● networks-api          :8085
+  ● random-facts-api      :8082
+  ● alcohol-free-api      :8081
+  ...
+
+━━━ Frontend ━━━
+  ● Angular               :3000
+
+━━━ SSH Tunnel(s) ━━━
+  ● DigitalOcean          :27019
+
+Press q or Ctrl+C to exit • Updates every 3 seconds
 ```
 
 ### `musing dev`
@@ -83,9 +88,6 @@ musing dev
 # Force rebuild images
 musing dev --rebuild
 
-# Start and deploy MongoDB data
-musing dev --data
-
 # Start and follow logs
 musing dev --logs
 
@@ -94,49 +96,92 @@ musing dev --stop
 ```
 
 **Features:**
-- 🔍 Validates Docker daemon status
-- 📂 Checks for required API repositories
-- ✅ Interactive confirmation for missing repos
-- ⏳ Animated spinners for long operations (Bubbles)
-- 🏥 Health checks for MongoDB and Frontend
-- 📦 Displays service URLs in styled box
+- 🔍 Auto-detects and starts Docker Desktop if needed
+- 📂 Validates required API repositories exist
+- ⏳ Progress indicators for long operations
+- 🏥 Health checks for MongoDB and Angular
+- 📦 Displays service URLs in styled format
+- 💡 Helpful next-step suggestions
+
+### `musing deploy`
+
+Deploy MongoDB data collections to development or production.
+
+```bash
+# Deploy all collections to development (default)
+musing deploy
+
+# Deploy specific collection to development
+musing deploy news
+
+# Deploy to production (with confirmation prompt)
+musing deploy --env prod
+musing deploy -e prod
+
+# Deploy specific collection to production
+musing deploy news --env prod
+
+# Flags can go before or after arguments
+musing deploy --env prod news
+musing deploy news --env prod
+```
+
+**Features:**
+- 🔒 **Production Safety**: Interactive confirmation before prod deployments
+- 🌐 **Tunnel Verification**: Checks SSH tunnel is open before prod deployment
+- 📁 **Flexible Targets**: Deploy all collections or specific ones (news, projects, etc.)
+- ⚡ **Smart Defaults**: Deploys to dev environment by default
+- 🎯 **Flexible Syntax**: Flags work before or after arguments (like docker, kubectl, git)
 
 ## UX Highlights
 
-### Gum Styling
+### Bubble Tea TUI
 
-- **Headers** - Double-bordered, centered, colored
-- **Success/Error/Info** - Color-coded with icons (✓ ✗ ℹ ⚠)
-- **Boxes** - Rounded borders for grouped information
-- **Interactive Prompts** - Beautiful yes/no confirmations
+- **Live Monitor**: Full-screen interactive dashboard with auto-refresh
+- **Keyboard Controls**: Intuitive navigation (q/Ctrl+C/Esc to exit)
+- **Alt Screen Buffer**: No terminal clutter, clean return to prompt
 
-### Bubbles Spinners
+### Lip Gloss Styling
 
-Animated spinners for long-running operations:
-- Building Docker images
-- Starting/stopping services
-- Deploying data
+- **Headers**: Rounded borders with magenta/purple theme
+- **Sections**: Organized with styled dividers (━━━)
+- **Status Indicators**: Color-coded dots (green/red)
+- **Timestamps**: Subtle gray italic formatting
 
-**Graceful degradation**: Falls back to Gum spinners when no TTY available (CI/CD environments).
+### Huh Prompts
+
+- **Native Confirmations**: Built-in Bubble Tea prompts (no external dependencies)
+- **Production Safety**: Clear yes/no prompts for destructive operations
+- **Keyboard Friendly**: Tab/Enter navigation
+
+### Professional Polish
+
+- No emoji characters (clean, professional output)
+- Consistent color scheme (magenta/purple accent)
+- Clear visual hierarchy
+- Fast, responsive interface
 
 ## Architecture
 
 ```
 musing-cli/
-├── main.go                          # Entry point
+├── main.go                          # Entry point with arg reordering
 ├── cmd/
-│   ├── status.go                    # Status command with live watch mode
-│   └── dev.go                       # Dev command with Docker management
+│   ├── dev.go                       # Dev command with Docker management
+│   ├── deploy.go                    # MongoDB deployment with safety checks
+│   └── monitor.go                   # Live TUI monitoring dashboard
 ├── internal/
 │   ├── config/
 │   │   └── config.go                # Service configurations & ports
 │   ├── docker/
-│   │   └── docker.go                # Docker Compose operations
+│   │   └── docker.go                # Docker Desktop & Compose operations
 │   ├── health/
-│   │   └── health.go                # Port/HTTP health checks
+│   │   └── health.go                # Port health checks with latency
+│   ├── mongo/
+│   │   └── mongo.go                 # MongoDB deployment operations
 │   └── ui/
-│       ├── gum.go                   # Gum wrapper functions
-│       └── spinner.go               # Bubbles spinner component
+│       ├── confirm.go               # Huh confirmation prompts
+│       └── ui.go                    # Styled output helpers
 └── README.md
 ```
 
@@ -147,10 +192,12 @@ musing-cli/
 | Startup Time | ~20-50ms | 1-3ms |
 | Type Safety | ❌ | ✅ |
 | Error Handling | Basic | Comprehensive |
-| UX | Basic colors | Gum + Bubbles |
+| UX | Basic colors | Bubble Tea TUI |
 | Testability | Difficult | Easy |
 | Cross-platform | Unix only | Any OS |
-| Live Monitoring | ❌ | ✅ |
+| Live Monitoring | ❌ | ✅ (3s refresh) |
+| Production Safety | ❌ | ✅ (confirmations) |
+| SSH Tunnel Monitoring | ❌ | ✅ |
 
 ## Development
 
@@ -174,42 +221,46 @@ go run . dev --stop
 import "github.com/stevengregory/musing-cli/internal/ui"
 
 // Styled output
-ui.Header("My Header")
 ui.Success("Operation succeeded")
 ui.Error("Operation failed")
 ui.Info("Some information")
-ui.Warning("Be careful!")
 
-// Spinners
-ui.SpinWithBubbles("Building...", "docker", "compose", "build")
-ui.Spin("Quick task...", "echo", "hello")
-
-// Confirmations
+// Confirmations (using Huh)
 if ui.Confirm("Continue?", false) {
     // User said yes
 }
 
-// Boxes
-ui.Box("Title", "Content goes here")
+// Advanced confirmations
+confirmed := ui.ConfirmWithBubbles(ui.ConfirmOptions{
+    Title:       "Deploy to production?",
+    Description: "This will overwrite production data",
+    Affirmative: "Yes, deploy",
+    Negative:    "Cancel",
+    Inline:      true,
+})
 ```
 
 ## Future Enhancements
 
-- [ ] **Deploy Command** - MongoDB data deployment (currently uses `./scripts/deploy.sh`)
-- [ ] **Tunnel Command** - SSH tunnel management for production MongoDB
+- [x] **Deploy Command** - MongoDB data deployment with prod safety ✅
+- [x] **Live Monitoring** - Real-time TUI dashboard ✅
+- [x] **SSH Tunnel Monitoring** - Track production tunnel status ✅
+- [ ] **Tunnel Command** - Auto-start/stop SSH tunnels
 - [ ] **Build Command** - Angular build with size analysis
 - [ ] **Logs Command** - Selective log streaming by service
 - [ ] **Restart Command** - Restart individual services
 - [ ] **Config Command** - Manage CLI configuration (default ports, colors, etc.)
-- [ ] **Full TUI Dashboard** - Split-pane view with logs + status (using Bubble Tea)
+- [ ] **Split-pane TUI** - Logs + status in one view
 
-## Why Go + Gum + Bubbles?
+## Why Go + Charm Bracelet?
 
-1. **Go** - Your service layer is already in Go, so no new language
-2. **Gum** - Instant beautiful styling without TUI complexity
-3. **Bubbles** - Animated spinners for professional feel
-4. **Speed** - 50x faster startup than Bun, 100x faster than Node
-5. **Distribution** - Single binary, no runtime dependencies
+1. **Go** - Service layer already in Go, consistent ecosystem
+2. **Bubble Tea** - Professional TUI framework with full control
+3. **Huh** - Native form/confirmation prompts
+4. **Lip Gloss** - Beautiful styling without manual ANSI codes
+5. **Speed** - 50x faster startup than Bun, 100x faster than Node
+6. **Distribution** - Single binary, zero runtime dependencies
+7. **Native Feel** - Professional CLI/TUI experience matching kubectl, gh, docker
 
 ## Contributing
 
