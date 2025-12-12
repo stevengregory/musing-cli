@@ -41,7 +41,7 @@ func EnsureRunning(promptUser bool) error {
 
 	// Prompt user if requested
 	if promptUser {
-		fmt.Println("\n⚠️  Docker is not running.")
+		fmt.Println("\nDocker is not running.")
 		fmt.Print("Start Docker Desktop? [Y/n]: ")
 
 		var response string
@@ -51,7 +51,7 @@ func EnsureRunning(promptUser bool) error {
 			return fmt.Errorf("Docker is required to continue")
 		}
 	} else {
-		fmt.Println("\n⚠️  Docker is not running. Starting Docker Desktop...")
+		fmt.Println("\nDocker is not running. Starting Docker Desktop...")
 	}
 
 	// Start Docker Desktop
@@ -60,7 +60,7 @@ func EnsureRunning(promptUser bool) error {
 	}
 
 	// Wait for Docker to be ready
-	fmt.Println("⏳ Waiting for Docker to be ready (this may take 30-60 seconds)...")
+	fmt.Println("Waiting for Docker to be ready (this may take 30-60 seconds)...")
 	return waitForReady(90 * time.Second)
 }
 
@@ -98,7 +98,7 @@ func waitForReady(timeout time.Duration) error {
 
 		case <-ticker.C:
 			if CheckRunning() == nil {
-				fmt.Println("✅ Docker is ready!")
+				fmt.Println("Docker is ready!")
 				return nil
 			}
 

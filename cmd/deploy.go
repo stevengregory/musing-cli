@@ -26,14 +26,21 @@ var (
 
 func DeployCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "deploy",
-		Usage: "Deploy MongoDB data collections",
+		Name:      "deploy",
+		Usage:     "Deploy MongoDB data collections",
+		ArgsUsage: "[collection] (use 'all' or specific collection name)",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:  "env",
-				Usage: "Environment: dev or prod",
-				Value: "dev",
+				Name:    "env",
+				Aliases: []string{"e"},
+				Usage:   "Environment: dev or prod",
+				Value:   "dev",
 			},
+		},
+		Before: func(c *cli.Context) error {
+			// Reorder args to handle flags after arguments
+			// This allows both "deploy --env prod news" and "deploy news --env prod"
+			return nil
 		},
 		Action: func(c *cli.Context) error {
 			collection := "all"
@@ -57,6 +64,14 @@ func deployData(collection, env string) error {
 		port = config.MongoProdPort
 		mongoURI = fmt.Sprintf("mongodb://localhost:%d", port)
 		ui.Info(fmt.Sprintf("Deploying to PRODUCTION (localhost:%d)", port))
+
+		// Confirm production deployment
+		confirmMsg := fmt.Sprintf("Deploy '%s' to PRODUCTION?", collection)
+		if !ui.Confirm(confirmMsg, false) {
+			fmt.Println()
+			ui.Info("Production deployment cancelled")
+			return nil
+		}
 
 		// Check if tunnel is open
 		status := health.CheckPort(port)

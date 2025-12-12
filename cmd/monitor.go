@@ -232,6 +232,15 @@ func (m monitorModel) View() string {
 		s += "\n"
 	}
 
+	// SSH Tunnels Section
+	sshServices := m.getSSHTunnelServices()
+	if len(sshServices) > 0 {
+		s += sectionHeaderStyle.Render("━━━ SSH Tunnels ━━━")
+		s += "\n"
+		s += m.renderServiceList(sshServices)
+		s += "\n"
+	}
+
 	// Footer
 	s += footerStyle.Render("Press q or Ctrl+C to exit • Updates every 3 seconds")
 
@@ -246,6 +255,16 @@ func (m monitorModel) getDockerServices() []ServiceHealth {
 		}
 	}
 	return dockerSvcs
+}
+
+func (m monitorModel) getSSHTunnelServices() []ServiceHealth {
+	var sshSvcs []ServiceHealth
+	for _, svc := range m.services {
+		if svc.Name == "DigitalOcean" {
+			sshSvcs = append(sshSvcs, svc)
+		}
+	}
+	return sshSvcs
 }
 
 func (m monitorModel) getFrontendServices() []ServiceHealth {
@@ -271,7 +290,7 @@ func (m monitorModel) getDatabaseServices() []ServiceHealth {
 func (m monitorModel) getAPIServices() []ServiceHealth {
 	var apis []ServiceHealth
 	for _, svc := range m.services {
-		if svc.Name != "MongoDB" && svc.Name != "Angular" && svc.Name != "Docker Desktop" {
+		if svc.Name != "MongoDB" && svc.Name != "Angular" && svc.Name != "Docker Desktop" && svc.Name != "DigitalOcean" {
 			apis = append(apis, svc)
 		}
 	}
@@ -347,6 +366,14 @@ func checkHealthCmd() tea.Cmd {
 			Name:   "Docker Desktop",
 			Port:   0, // Docker Desktop doesn't have a specific port
 			Status: getStatus(dockerRunning),
+		})
+
+		// Check DigitalOcean SSH Tunnel (to production MongoDB)
+		prodTunnelStatus := health.CheckPort(config.MongoProdPort)
+		services = append(services, ServiceHealth{
+			Name:   "DigitalOcean",
+			Port:   config.MongoProdPort,
+			Status: getStatus(prodTunnelStatus.Open),
 		})
 
 		// Check MongoDB
