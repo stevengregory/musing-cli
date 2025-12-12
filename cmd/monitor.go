@@ -232,10 +232,10 @@ func (m monitorModel) View() string {
 		s += "\n"
 	}
 
-	// SSH Tunnels Section
+	// SSH Tunnel(s) Section
 	sshServices := m.getSSHTunnelServices()
 	if len(sshServices) > 0 {
-		s += sectionHeaderStyle.Render("━━━ SSH Tunnels ━━━")
+		s += sectionHeaderStyle.Render("━━━ SSH Tunnel(s) ━━━")
 		s += "\n"
 		s += m.renderServiceList(sshServices)
 		s += "\n"
