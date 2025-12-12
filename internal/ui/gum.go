@@ -135,17 +135,8 @@ func Spin(title string, command string, args ...string) error {
 	return cmd.Run()
 }
 
-// Confirm shows a confirmation prompt
-func Confirm(prompt string, defaultYes bool) bool {
-	args := []string{"confirm", prompt}
-	if defaultYes {
-		args = append(args, "--default")
-	}
-
-	cmd := exec.Command("gum", args...)
-	err := cmd.Run()
-	return err == nil // gum confirm returns exit code 0 for yes, 1 for no
-}
+// Confirm has been moved to confirm.go and now uses Bubble Tea (Huh)
+// This placeholder is kept for reference - the actual implementation is in confirm.go
 
 // ServiceStatus renders a service status line
 func ServiceStatus(name string, status string, port int, latency string) {
