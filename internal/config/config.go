@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -40,7 +41,8 @@ func FindProjectRoot() (string, error) {
 		return "", fmt.Errorf("~/.musingrc not found - create it with your project path (e.g., /Users/you/Repos/project)")
 	}
 
-	projectPath := filepath.Clean(string(data))
+	// Trim whitespace and clean the path
+	projectPath := filepath.Clean(strings.TrimSpace(string(data)))
 	if !hasComposeFile(projectPath) {
 		return "", fmt.Errorf("~/.musingrc points to %s which does not contain compose.yaml", projectPath)
 	}
