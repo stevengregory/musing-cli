@@ -30,29 +30,22 @@ var APIServices = []ServiceConfig{
 	{Name: "bitcoin-price-api", Port: 8088, Path: "/health"},
 }
 
-// FindProjectRoot searches for the project root containing compose.yaml
-// Priority: 1) MUSING_PROJECT_ROOT env var, 2) ~/.musingrc config file
+// FindProjectRoot reads the project root path from ~/.musingrc config file
 func FindProjectRoot() (string, error) {
-	// 1. Check environment variable first (highest priority)
-	if envPath := os.Getenv("MUSING_PROJECT_ROOT"); envPath != "" {
-		if hasComposeFile(envPath) {
-			return envPath, nil
-		}
-		return "", fmt.Errorf("MUSING_PROJECT_ROOT=%s does not contain compose.yaml", envPath)
-	}
-
-	// 2. Check config file
 	home := os.Getenv("HOME")
 	configPath := filepath.Join(home, ".musingrc")
-	if data, err := os.ReadFile(configPath); err == nil {
-		projectPath := filepath.Clean(string(data))
-		if hasComposeFile(projectPath) {
-			return projectPath, nil
-		}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", fmt.Errorf("~/.musingrc not found - create it with your project path (e.g., /Users/you/Repos/project)")
+	}
+
+	projectPath := filepath.Clean(string(data))
+	if !hasComposeFile(projectPath) {
 		return "", fmt.Errorf("~/.musingrc points to %s which does not contain compose.yaml", projectPath)
 	}
 
-	return "", fmt.Errorf("no project root configured - set MUSING_PROJECT_ROOT env var or create ~/.musingrc with project path")
+	return projectPath, nil
 }
 
 // hasComposeFile checks if directory contains compose.yaml
