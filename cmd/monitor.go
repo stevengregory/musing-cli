@@ -360,6 +360,11 @@ func checkHealthCmd() tea.Cmd {
 	return func() tea.Msg {
 		var services []ServiceHealth
 
+		cfg := config.GetConfig()
+		if cfg == nil {
+			return healthCheckMsg{services: services}
+		}
+
 		// Check Docker Desktop
 		dockerRunning := docker.CheckRunning() == nil
 		services = append(services, ServiceHealth{
@@ -368,32 +373,16 @@ func checkHealthCmd() tea.Cmd {
 			Status: getStatus(dockerRunning),
 		})
 
-		// Check DigitalOcean SSH Tunnel (to production MongoDB)
-		prodTunnelStatus := health.CheckPort(config.MongoProdPort)
+		// Check DigitalOcean SSH Tunnel (to production database)
+		prodTunnelStatus := health.CheckPort(cfg.Database.ProdPort)
 		services = append(services, ServiceHealth{
 			Name:   "DigitalOcean",
-			Port:   config.MongoProdPort,
+			Port:   cfg.Database.ProdPort,
 			Status: getStatus(prodTunnelStatus.Open),
 		})
 
-		// Check MongoDB
-		mongoStatus := health.CheckPort(config.MongoDevPort)
-		services = append(services, ServiceHealth{
-			Name:   "MongoDB",
-			Port:   config.MongoDevPort,
-			Status: getStatus(mongoStatus.Open),
-		})
-
-		// Check Angular
-		angularStatus := health.CheckPort(config.AngularPort)
-		services = append(services, ServiceHealth{
-			Name:   "Angular",
-			Port:   config.AngularPort,
-			Status: getStatus(angularStatus.Open),
-		})
-
-		// Check API services
-		for _, svc := range config.APIServices {
+		// Check all configured services
+		for _, svc := range cfg.Services {
 			status := health.CheckPort(svc.Port)
 			services = append(services, ServiceHealth{
 				Name:   svc.Name,

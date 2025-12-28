@@ -186,26 +186,26 @@ func checkAPIRepos() error {
 func printServiceStatus() {
 	fmt.Println()
 
+	cfg := config.GetConfig()
+	if cfg == nil {
+		ui.Error("No configuration loaded")
+		return
+	}
+
 	// Check Docker Desktop
 	dockerRunning := docker.CheckRunning() == nil
 
-	// Check all services
-	mongoStatus := health.CheckPort(config.MongoDevPort)
-	angularStatus := health.CheckPort(config.AngularPort)
-
-	var apiStatuses []struct {
-		name   string
-		port   int
-		status health.PortStatus
-	}
-
-	for _, svc := range config.APIServices {
-		status := health.CheckPort(svc.Port)
-		apiStatuses = append(apiStatuses, struct {
-			name   string
-			port   int
-			status health.PortStatus
-		}{svc.Name, svc.Port, status})
+	// Organize services by type
+	var databases, apis, frontends []config.ServiceConfig
+	for _, svc := range cfg.Services {
+		switch svc.Type {
+		case "database":
+			databases = append(databases, svc)
+		case "api":
+			apis = append(apis, svc)
+		case "frontend":
+			frontends = append(frontends, svc)
+		}
 	}
 
 	// Define styles
@@ -236,52 +236,65 @@ func printServiceStatus() {
 	fmt.Println()
 
 	// Database section
-	fmt.Println(sectionHeaderStyle.Render("━━━ Database ━━━"))
-	fmt.Println()
-	if mongoStatus.Open {
-		fmt.Printf("  %s %-25s :%-6d\n",
-			checkmarkStyle.Render("✓"),
-			"MongoDB",
-			config.MongoDevPort)
-	} else {
-		fmt.Printf("  %s %-25s :%-6d\n",
-			errorStyle.Render("✗"),
-			"MongoDB",
-			config.MongoDevPort)
+	if len(databases) > 0 {
+		fmt.Println(sectionHeaderStyle.Render("━━━ Database ━━━"))
+		fmt.Println()
+		for _, db := range databases {
+			status := health.CheckPort(db.Port)
+			if status.Open {
+				fmt.Printf("  %s %-25s :%-6d\n",
+					checkmarkStyle.Render("✓"),
+					db.Name,
+					db.Port)
+			} else {
+				fmt.Printf("  %s %-25s :%-6d\n",
+					errorStyle.Render("✗"),
+					db.Name,
+					db.Port)
+			}
+		}
+		fmt.Println()
 	}
-	fmt.Println()
 
 	// API Services section
-	fmt.Println(sectionHeaderStyle.Render(fmt.Sprintf("━━━ API Services (%d) ━━━", len(apiStatuses))))
-	fmt.Println()
-	for _, api := range apiStatuses {
-		if api.status.Open {
-			fmt.Printf("  %s %-25s :%-6d\n",
-				checkmarkStyle.Render("✓"),
-				api.name,
-				api.port)
-		} else {
-			fmt.Printf("  %s %-25s :%-6d\n",
-				errorStyle.Render("✗"),
-				api.name,
-				api.port)
+	if len(apis) > 0 {
+		fmt.Println(sectionHeaderStyle.Render(fmt.Sprintf("━━━ API Services (%d) ━━━", len(apis))))
+		fmt.Println()
+		for _, api := range apis {
+			status := health.CheckPort(api.Port)
+			if status.Open {
+				fmt.Printf("  %s %-25s :%-6d\n",
+					checkmarkStyle.Render("✓"),
+					api.Name,
+					api.Port)
+			} else {
+				fmt.Printf("  %s %-25s :%-6d\n",
+					errorStyle.Render("✗"),
+					api.Name,
+					api.Port)
+			}
 		}
+		fmt.Println()
 	}
-	fmt.Println()
 
 	// Frontend section
-	fmt.Println(sectionHeaderStyle.Render("━━━ Frontend ━━━"))
-	fmt.Println()
-	if angularStatus.Open {
-		fmt.Printf("  %s %-25s :%-6d\n",
-			checkmarkStyle.Render("✓"),
-			"Angular",
-			config.AngularPort)
-	} else {
-		fmt.Printf("  %s %-25s :%-6d\n",
-			errorStyle.Render("✗"),
-			"Angular",
-			config.AngularPort)
+	if len(frontends) > 0 {
+		fmt.Println(sectionHeaderStyle.Render("━━━ Frontend ━━━"))
+		fmt.Println()
+		for _, fe := range frontends {
+			status := health.CheckPort(fe.Port)
+			if status.Open {
+				fmt.Printf("  %s %-25s :%-6d\n",
+					checkmarkStyle.Render("✓"),
+					fe.Name,
+					fe.Port)
+			} else {
+				fmt.Printf("  %s %-25s :%-6d\n",
+					errorStyle.Render("✗"),
+					fe.Name,
+					fe.Port)
+			}
+		}
 	}
 
 	fmt.Println()

@@ -54,13 +54,18 @@ func DeployCommand() *cli.Command {
 }
 
 func deployData(collection, env string) error {
-	fmt.Println(deployHeaderStyle.Render(fmt.Sprintf("MongoDB Deployment - %s", env)))
+	cfg := config.GetConfig()
+	if cfg == nil {
+		return fmt.Errorf("no configuration loaded")
+	}
+
+	fmt.Println(deployHeaderStyle.Render(fmt.Sprintf("%s Deployment - %s", cfg.Database.Type, env)))
 
 	var mongoURI string
 	var port int
 
 	if env == "prod" {
-		port = config.MongoProdPort
+		port = cfg.Database.ProdPort
 		mongoURI = fmt.Sprintf("mongodb://localhost:%d", port)
 		ui.Info(fmt.Sprintf("Deploying to PRODUCTION (localhost:%d)", port))
 
@@ -75,24 +80,24 @@ func deployData(collection, env string) error {
 		// Check if tunnel is open
 		status := health.CheckPort(port)
 		if !status.Open {
-			ui.Error(fmt.Sprintf("MongoDB tunnel not open on port %d", port))
-			ui.Info(fmt.Sprintf("Open SSH tunnel first: ssh -f -N -L %d:localhost:%d root@<your-server>", config.MongoProdPort, config.MongoDevPort))
-			return fmt.Errorf("production MongoDB not accessible")
+			ui.Error(fmt.Sprintf("%s tunnel not open on port %d", cfg.Database.Type, port))
+			ui.Info(fmt.Sprintf("Open SSH tunnel first: ssh -f -N -L %d:localhost:%d root@<your-server>", cfg.Database.ProdPort, cfg.Database.DevPort))
+			return fmt.Errorf("production %s not accessible", cfg.Database.Type)
 		}
 		ui.Success("SSH tunnel is open")
 	} else {
-		port = config.MongoDevPort
+		port = cfg.Database.DevPort
 		mongoURI = fmt.Sprintf("mongodb://localhost:%d", port)
 		ui.Info(fmt.Sprintf("Deploying to DEVELOPMENT (localhost:%d)", port))
 
-		// Check if dev MongoDB is running
+		// Check if dev database is running
 		status := health.CheckPort(port)
 		if !status.Open {
-			ui.Error(fmt.Sprintf("MongoDB not running on port %d", port))
+			ui.Error(fmt.Sprintf("%s not running on port %d", cfg.Database.Type, port))
 			ui.Info("Run 'musing dev' first to start the development stack")
-			return fmt.Errorf("development MongoDB not accessible")
+			return fmt.Errorf("development %s not accessible", cfg.Database.Type)
 		}
-		ui.Success("MongoDB is running")
+		ui.Success(fmt.Sprintf("%s is running", cfg.Database.Type))
 	}
 
 	// Get data directory from project root
@@ -101,20 +106,20 @@ func deployData(collection, env string) error {
 		ui.Error("Could not find project root")
 		return err
 	}
-	dataDir := filepath.Join(projectRoot, "data")
+	dataDir := filepath.Join(projectRoot, cfg.Database.DataDir)
 
 	fmt.Println()
 
 	if collection == "all" {
 		ui.Info("Deploying all collections...")
-		if err := mongo.DeployAll(mongoURI, "me", dataDir); err != nil {
+		if err := mongo.DeployAll(mongoURI, cfg.Database.Name, dataDir); err != nil {
 			ui.Error(fmt.Sprintf("Failed to deploy: %v", err))
 			return err
 		}
 		ui.Success("All collections deployed successfully!")
 	} else {
 		ui.Info(fmt.Sprintf("Deploying collection: %s", collection))
-		if err := mongo.DeployCollection(mongoURI, "me", collection, dataDir); err != nil {
+		if err := mongo.DeployCollection(mongoURI, cfg.Database.Name, collection, dataDir); err != nil {
 			ui.Error(fmt.Sprintf("Failed to deploy: %v", err))
 			return err
 		}

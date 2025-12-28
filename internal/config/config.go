@@ -4,33 +4,37 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
-const (
-	MongoDevPort  = 27018
-	MongoProdPort = 27019
-	AngularPort   = 3000
-)
+// ProjectConfig represents the .musing.yaml configuration
+type ProjectConfig struct {
+	Services []ServiceConfig `yaml:"services"`
+	Database DatabaseConfig  `yaml:"database"`
+}
 
-// API service configurations
+// ServiceConfig represents a service in the stack
 type ServiceConfig struct {
-	Name string
-	Port int
-	Path string // Health check path
+	Name        string `yaml:"name"`
+	Port        int    `yaml:"port"`
+	Type        string `yaml:"type"`        // frontend, api, database
+	Healthcheck string `yaml:"healthcheck"` // Health check path for APIs
 }
 
-var APIServices = []ServiceConfig{
-	{Name: "networks-api", Port: 8085, Path: "/health"},
-	{Name: "random-facts-api", Port: 8082, Path: "/health"},
-	{Name: "alcohol-free-api", Port: 8081, Path: "/health"},
-	{Name: "random-quotes-api", Port: 8083, Path: "/health"},
-	{Name: "news-api", Port: 8084, Path: "/health"},
-	{Name: "about-me-api", Port: 8086, Path: "/health"},
-	{Name: "featured-item-api", Port: 8087, Path: "/health"},
-	{Name: "bitcoin-price-api", Port: 8088, Path: "/health"},
+// DatabaseConfig represents database configuration
+type DatabaseConfig struct {
+	Type     string `yaml:"type"` // mongodb, postgres, etc
+	Name     string `yaml:"name"` // Database name
+	DevPort  int    `yaml:"devPort"`
+	ProdPort int    `yaml:"prodPort"`
+	DataDir  string `yaml:"dataDir"` // Relative path to data directory
 }
 
-// FindProjectRoot searches upward from CWD for a directory containing .musing marker file
+var currentConfig *ProjectConfig
+
+// FindProjectRoot searches upward from CWD for a directory containing .musing.yaml
+// and loads the project configuration
 func FindProjectRoot() (string, error) {
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -40,14 +44,20 @@ func FindProjectRoot() (string, error) {
 	// Search upward from current directory
 	dir := currentDir
 	for {
-		// Check if this directory contains .musing file
-		musingPath := filepath.Join(dir, ".musing")
+		// Check if this directory contains .musing.yaml file
+		musingPath := filepath.Join(dir, ".musing.yaml")
 		if _, err := os.Stat(musingPath); err == nil {
-			// Found .musing file, verify compose.yaml exists
-			if hasComposeFile(dir) {
-				return dir, nil
+			// Found .musing.yaml file, load config
+			if err := loadConfig(musingPath); err != nil {
+				return "", fmt.Errorf("failed to load config from %s: %w", musingPath, err)
 			}
-			return "", fmt.Errorf("found .musing at %s but no compose.yaml", dir)
+
+			// Verify compose.yaml exists
+			if !hasComposeFile(dir) {
+				return "", fmt.Errorf("found .musing.yaml at %s but no compose.yaml", dir)
+			}
+
+			return dir, nil
 		}
 
 		// Move to parent directory
@@ -59,7 +69,28 @@ func FindProjectRoot() (string, error) {
 		dir = parent
 	}
 
-	return "", fmt.Errorf("no .musing file found (searched upward from %s)", currentDir)
+	return "", fmt.Errorf("no .musing.yaml file found (searched upward from %s)", currentDir)
+}
+
+// loadConfig reads and parses the .musing.yaml configuration file
+func loadConfig(configPath string) error {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	var config ProjectConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return fmt.Errorf("failed to parse YAML: %w", err)
+	}
+
+	currentConfig = &config
+	return nil
+}
+
+// GetConfig returns the loaded project configuration
+func GetConfig() *ProjectConfig {
+	return currentConfig
 }
 
 // hasComposeFile checks if directory contains compose.yaml
@@ -70,20 +101,25 @@ func hasComposeFile(dir string) bool {
 }
 
 // GetAPIRepos returns paths to expected API repositories
-// Dynamically discovers repos relative to project root
+// Dynamically discovers repos relative to project root based on config
 func GetAPIRepos() []string {
+	if currentConfig == nil {
+		return []string{}
+	}
+
 	projectRoot, err := FindProjectRoot()
 	if err != nil {
-		// Fallback to empty list if project root not found
 		return []string{}
 	}
 
 	parentDir := filepath.Dir(projectRoot)
 	var repos []string
 
-	for _, svc := range APIServices {
-		repoPath := filepath.Join(parentDir, svc.Name)
-		repos = append(repos, repoPath)
+	for _, svc := range currentConfig.Services {
+		if svc.Type == "api" {
+			repoPath := filepath.Join(parentDir, svc.Name)
+			repos = append(repos, repoPath)
+		}
 	}
 
 	return repos
