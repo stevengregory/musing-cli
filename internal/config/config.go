@@ -16,10 +16,9 @@ type ProjectConfig struct {
 
 // ServiceConfig represents a service in the stack
 type ServiceConfig struct {
-	Name        string `yaml:"name"`
-	Port        int    `yaml:"port"`
-	Type        string `yaml:"type"`        // frontend, api, database
-	Healthcheck string `yaml:"healthcheck"` // Health check path for APIs
+	Name string `yaml:"name"`
+	Port int    `yaml:"port"`
+	Type string `yaml:"type"` // frontend, api, database
 }
 
 // DatabaseConfig represents database configuration
