@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/charmbracelet/lipgloss"
@@ -77,7 +76,7 @@ func deployData(collection, env string) error {
 		status := health.CheckPort(port)
 		if !status.Open {
 			ui.Error(fmt.Sprintf("MongoDB tunnel not open on port %d", port))
-			ui.Info("Run 'ssh -f -N -L 27019:localhost:27018 root@stevengregory.io' first")
+			ui.Info(fmt.Sprintf("Open SSH tunnel first: ssh -f -N -L %d:localhost:%d root@<your-server>", config.MongoProdPort, config.MongoDevPort))
 			return fmt.Errorf("production MongoDB not accessible")
 		}
 		ui.Success("SSH tunnel is open")
@@ -96,10 +95,13 @@ func deployData(collection, env string) error {
 		ui.Success("MongoDB is running")
 	}
 
-	// Get data directory from main repo (not worktrees)
-	home := os.Getenv("HOME")
-	mainRepoPath := filepath.Join(home, "Repos", "steven")
-	dataDir := filepath.Join(mainRepoPath, "data")
+	// Get data directory from project root
+	projectRoot, err := config.FindProjectRoot()
+	if err != nil {
+		ui.Error("Could not find project root")
+		return err
+	}
+	dataDir := filepath.Join(projectRoot, "data")
 
 	fmt.Println()
 

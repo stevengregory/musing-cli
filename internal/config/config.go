@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -29,17 +30,75 @@ var APIServices = []ServiceConfig{
 	{Name: "bitcoin-price-api", Port: 8088, Path: "/health"},
 }
 
-// GetAPIRepos returns paths to expected API repositories
-func GetAPIRepos() []string {
-	home := os.Getenv("HOME")
-	return []string{
-		filepath.Join(home, "repos", "networks-api"),
-		filepath.Join(home, "repos", "random-facts-api"),
-		filepath.Join(home, "repos", "alcohol-free-api"),
-		filepath.Join(home, "repos", "random-quotes-api"),
-		filepath.Join(home, "repos", "news-api"),
-		filepath.Join(home, "repos", "about-me-api"),
-		filepath.Join(home, "repos", "featured-item-api"),
-		filepath.Join(home, "repos", "bitcoin-price-api"),
+// FindProjectRoot searches for the project root containing compose.yaml
+// Starts from current directory and searches up, avoiding git worktrees
+func FindProjectRoot() (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", err
 	}
+
+	// Check current directory
+	if hasComposeFile(cwd) && !isWorktree(cwd) {
+		return cwd, nil
+	}
+
+	// Check parent directory
+	parent := filepath.Dir(cwd)
+	if hasComposeFile(parent) && !isWorktree(parent) {
+		return parent, nil
+	}
+
+	// Search sibling directories
+	entries, err := os.ReadDir(parent)
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				siblingPath := filepath.Join(parent, entry.Name())
+				if hasComposeFile(siblingPath) && !isWorktree(siblingPath) {
+					return siblingPath, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("could not find compose.yaml in project root")
+}
+
+// hasComposeFile checks if directory contains compose.yaml
+func hasComposeFile(dir string) bool {
+	composePath := filepath.Join(dir, "compose.yaml")
+	_, err := os.Stat(composePath)
+	return err == nil
+}
+
+// isWorktree checks if a directory is a git worktree (not the main repository)
+func isWorktree(path string) bool {
+	gitPath := filepath.Join(path, ".git")
+	info, err := os.Stat(gitPath)
+	if err != nil {
+		return false
+	}
+	// In a worktree, .git is a file. In main repo, .git is a directory
+	return !info.IsDir()
+}
+
+// GetAPIRepos returns paths to expected API repositories
+// Dynamically discovers repos relative to project root
+func GetAPIRepos() []string {
+	projectRoot, err := FindProjectRoot()
+	if err != nil {
+		// Fallback to empty list if project root not found
+		return []string{}
+	}
+
+	parentDir := filepath.Dir(projectRoot)
+	var repos []string
+
+	for _, svc := range APIServices {
+		repoPath := filepath.Join(parentDir, svc.Name)
+		repos = append(repos, repoPath)
+	}
+
+	return repos
 }
