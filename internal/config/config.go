@@ -31,8 +31,29 @@ var APIServices = []ServiceConfig{
 }
 
 // FindProjectRoot searches for the project root containing compose.yaml
-// Starts from current directory and searches up, avoiding git worktrees
+// Priority: 1) MUSING_PROJECT_ROOT env var, 2) ~/.musingrc config file, 3) Auto-discovery
 func FindProjectRoot() (string, error) {
+	// 1. Check environment variable first (highest priority)
+	if envPath := os.Getenv("MUSING_PROJECT_ROOT"); envPath != "" {
+		if hasComposeFile(envPath) {
+			return envPath, nil
+		}
+		return "", fmt.Errorf("MUSING_PROJECT_ROOT=%s does not contain compose.yaml", envPath)
+	}
+
+	// 2. Check config file
+	home := os.Getenv("HOME")
+	configPath := filepath.Join(home, ".musingrc")
+	if data, err := os.ReadFile(configPath); err == nil {
+		projectPath := string(data)
+		projectPath = filepath.Clean(projectPath)
+		if hasComposeFile(projectPath) {
+			return projectPath, nil
+		}
+		return "", fmt.Errorf("~/.musingrc points to %s which does not contain compose.yaml", projectPath)
+	}
+
+	// 3. Fallback to auto-discovery
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", err
