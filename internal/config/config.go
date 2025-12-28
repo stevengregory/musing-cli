@@ -31,7 +31,7 @@ var APIServices = []ServiceConfig{
 }
 
 // FindProjectRoot searches for the project root containing compose.yaml
-// Priority: 1) MUSING_PROJECT_ROOT env var, 2) ~/.musingrc config file, 3) Auto-discovery
+// Priority: 1) MUSING_PROJECT_ROOT env var, 2) ~/.musingrc config file
 func FindProjectRoot() (string, error) {
 	// 1. Check environment variable first (highest priority)
 	if envPath := os.Getenv("MUSING_PROJECT_ROOT"); envPath != "" {
@@ -45,45 +45,14 @@ func FindProjectRoot() (string, error) {
 	home := os.Getenv("HOME")
 	configPath := filepath.Join(home, ".musingrc")
 	if data, err := os.ReadFile(configPath); err == nil {
-		projectPath := string(data)
-		projectPath = filepath.Clean(projectPath)
+		projectPath := filepath.Clean(string(data))
 		if hasComposeFile(projectPath) {
 			return projectPath, nil
 		}
 		return "", fmt.Errorf("~/.musingrc points to %s which does not contain compose.yaml", projectPath)
 	}
 
-	// 3. Fallback to auto-discovery
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	// Check current directory
-	if hasComposeFile(cwd) && !isWorktree(cwd) {
-		return cwd, nil
-	}
-
-	// Check parent directory
-	parent := filepath.Dir(cwd)
-	if hasComposeFile(parent) && !isWorktree(parent) {
-		return parent, nil
-	}
-
-	// Search sibling directories
-	entries, err := os.ReadDir(parent)
-	if err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				siblingPath := filepath.Join(parent, entry.Name())
-				if hasComposeFile(siblingPath) && !isWorktree(siblingPath) {
-					return siblingPath, nil
-				}
-			}
-		}
-	}
-
-	return "", fmt.Errorf("could not find compose.yaml in project root")
+	return "", fmt.Errorf("no project root configured - set MUSING_PROJECT_ROOT env var or create ~/.musingrc with project path")
 }
 
 // hasComposeFile checks if directory contains compose.yaml
@@ -91,17 +60,6 @@ func hasComposeFile(dir string) bool {
 	composePath := filepath.Join(dir, "compose.yaml")
 	_, err := os.Stat(composePath)
 	return err == nil
-}
-
-// isWorktree checks if a directory is a git worktree (not the main repository)
-func isWorktree(path string) bool {
-	gitPath := filepath.Join(path, ".git")
-	info, err := os.Stat(gitPath)
-	if err != nil {
-		return false
-	}
-	// In a worktree, .git is a file. In main repo, .git is a directory
-	return !info.IsDir()
 }
 
 // GetAPIRepos returns paths to expected API repositories
