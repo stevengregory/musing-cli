@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 const (
@@ -31,23 +30,36 @@ var APIServices = []ServiceConfig{
 	{Name: "bitcoin-price-api", Port: 8088, Path: "/health"},
 }
 
-// FindProjectRoot reads the project root path from ~/.musingrc config file
+// FindProjectRoot searches upward from CWD for a directory containing .musing marker file
 func FindProjectRoot() (string, error) {
-	home := os.Getenv("HOME")
-	configPath := filepath.Join(home, ".musingrc")
-
-	data, err := os.ReadFile(configPath)
+	currentDir, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("~/.musingrc not found - create it with your project path (e.g., /Users/you/Repos/project)")
+		return "", fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	// Trim whitespace and clean the path
-	projectPath := filepath.Clean(strings.TrimSpace(string(data)))
-	if !hasComposeFile(projectPath) {
-		return "", fmt.Errorf("~/.musingrc points to %s which does not contain compose.yaml", projectPath)
+	// Search upward from current directory
+	dir := currentDir
+	for {
+		// Check if this directory contains .musing file
+		musingPath := filepath.Join(dir, ".musing")
+		if _, err := os.Stat(musingPath); err == nil {
+			// Found .musing file, verify compose.yaml exists
+			if hasComposeFile(dir) {
+				return dir, nil
+			}
+			return "", fmt.Errorf("found .musing at %s but no compose.yaml", dir)
+		}
+
+		// Move to parent directory
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached filesystem root
+			break
+		}
+		dir = parent
 	}
 
-	return projectPath, nil
+	return "", fmt.Errorf("no .musing file found (searched upward from %s)", currentDir)
 }
 
 // hasComposeFile checks if directory contains compose.yaml
