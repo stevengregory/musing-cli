@@ -286,8 +286,13 @@ func (m monitorModel) getFrontendServices() []ServiceHealth {
 
 func (m monitorModel) getDatabaseServices() []ServiceHealth {
 	var database []ServiceHealth
+	cfg := config.GetConfig()
+	if cfg == nil {
+		return database
+	}
+
 	for _, svc := range m.services {
-		if svc.Name == "MongoDB" {
+		if svc.Name == cfg.Database.Type {
 			database = append(database, svc)
 		}
 	}
@@ -296,8 +301,14 @@ func (m monitorModel) getDatabaseServices() []ServiceHealth {
 
 func (m monitorModel) getAPIServices() []ServiceHealth {
 	var apis []ServiceHealth
+	cfg := config.GetConfig()
+	if cfg == nil {
+		return apis
+	}
+
 	for _, svc := range m.services {
-		if svc.Name != "MongoDB" && svc.Name != "Angular" && svc.Name != "Docker Desktop" && svc.Name != "DigitalOcean" {
+		// Exclude: database, frontend, docker, and ssh tunnel
+		if svc.Name != cfg.Database.Type && svc.Name != "Angular" && svc.Name != "Docker Desktop" && svc.Name != "DigitalOcean" {
 			apis = append(apis, svc)
 		}
 	}
@@ -378,6 +389,14 @@ func checkHealthCmd() tea.Cmd {
 			Name:   "Docker Desktop",
 			Port:   0, // Docker Desktop doesn't have a specific port
 			Status: getStatus(dockerRunning),
+		})
+
+		// Check database (dev environment)
+		dbStatus := health.CheckPort(cfg.Database.DevPort)
+		services = append(services, ServiceHealth{
+			Name:   cfg.Database.Type,
+			Port:   cfg.Database.DevPort,
+			Status: getStatus(dbStatus.Open),
 		})
 
 		// Check DigitalOcean SSH Tunnel (to production database)

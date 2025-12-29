@@ -196,11 +196,9 @@ func printServiceStatus() {
 	dockerRunning := docker.CheckRunning() == nil
 
 	// Organize services by type
-	var databases, apis, frontends []config.ServiceConfig
+	var apis, frontends []config.ServiceConfig
 	for _, svc := range cfg.Services {
 		switch svc.Type {
-		case "database":
-			databases = append(databases, svc)
 		case "api":
 			apis = append(apis, svc)
 		case "frontend":
@@ -235,26 +233,22 @@ func printServiceStatus() {
 	}
 	fmt.Println()
 
-	// Database section
-	if len(databases) > 0 {
-		fmt.Println(sectionHeaderStyle.Render("━━━ Database ━━━"))
-		fmt.Println()
-		for _, db := range databases {
-			status := health.CheckPort(db.Port)
-			if status.Open {
-				fmt.Printf("  %s %-25s :%-6d\n",
-					checkmarkStyle.Render("✓"),
-					db.Name,
-					db.Port)
-			} else {
-				fmt.Printf("  %s %-25s :%-6d\n",
-					errorStyle.Render("✗"),
-					db.Name,
-					db.Port)
-			}
-		}
-		fmt.Println()
+	// Database section (from database config)
+	fmt.Println(sectionHeaderStyle.Render("━━━ Database ━━━"))
+	fmt.Println()
+	dbStatus := health.CheckPort(cfg.Database.DevPort)
+	if dbStatus.Open {
+		fmt.Printf("  %s %-25s :%-6d\n",
+			checkmarkStyle.Render("✓"),
+			cfg.Database.Type,
+			cfg.Database.DevPort)
+	} else {
+		fmt.Printf("  %s %-25s :%-6d\n",
+			errorStyle.Render("✗"),
+			cfg.Database.Type,
+			cfg.Database.DevPort)
 	}
+	fmt.Println()
 
 	// API Services section
 	if len(apis) > 0 {
