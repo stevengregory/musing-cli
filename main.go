@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
 
+	figure "github.com/common-nighthawk/go-figure"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/stevengregory/musing-cli/cmd"
 	"github.com/urfave/cli/v2"
 )
@@ -14,6 +17,13 @@ func main() {
 	// This suppresses urfave/cli's internal error logging
 	log.SetOutput(io.Discard)
 	log.SetFlags(0)
+
+	// Print ASCII art banner with color
+	banner := figure.NewFigure("Musing", "", true)
+	bannerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("99")).
+		Bold(true)
+	fmt.Println(bannerStyle.Render(banner.String()))
 
 	app := &cli.App{
 		Name:     "musing",
