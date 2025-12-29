@@ -27,8 +27,10 @@ func main() {
 	log.SetOutput(io.Discard)
 	log.SetFlags(0)
 
-	// Print ASCII art banner with color
-	PrintBanner()
+	// Print ASCII art banner with color (skip for monitor command which has its own banner)
+	if len(os.Args) < 2 || os.Args[1] != "monitor" {
+		PrintBanner()
+	}
 
 	app := &cli.App{
 		Name:     "musing",
