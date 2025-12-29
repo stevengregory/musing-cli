@@ -12,6 +12,15 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// PrintBanner displays the ASCII art banner
+func PrintBanner() {
+	banner := figure.NewFigure("Musing", "", true)
+	bannerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("99")).
+		Bold(true)
+	fmt.Println(bannerStyle.Render(banner.String()))
+}
+
 func main() {
 	// Disable default log output (timestamp prefixes)
 	// This suppresses urfave/cli's internal error logging
@@ -19,11 +28,7 @@ func main() {
 	log.SetFlags(0)
 
 	// Print ASCII art banner with color
-	banner := figure.NewFigure("Musing", "", true)
-	bannerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("99")).
-		Bold(true)
-	fmt.Println(bannerStyle.Render(banner.String()))
+	PrintBanner()
 
 	app := &cli.App{
 		Name:     "musing",

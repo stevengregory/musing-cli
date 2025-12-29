@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	figure "github.com/common-nighthawk/go-figure"
 	"github.com/evertras/bubble-table/table"
 	"github.com/stevengregory/musing-cli/internal/config"
 	"github.com/stevengregory/musing-cli/internal/docker"
@@ -198,6 +199,14 @@ func (m monitorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m monitorModel) View() string {
 	var s string
+
+	// ASCII art banner
+	banner := figure.NewFigure("Musing", "", true)
+	bannerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("99")).
+		Bold(true)
+	s += bannerStyle.Render(banner.String())
+	s += "\n"
 
 	// Header
 	s += headerStyle.Render("Development Stack - Live Monitor")
