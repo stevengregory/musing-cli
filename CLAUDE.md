@@ -4,14 +4,49 @@ This document provides comprehensive context for Claude AI assistants working on
 
 ## Project Overview
 
-**Musing CLI** is a professional command-line tool for managing the musing-tu development stack. It's built in Go using the Charm Bracelet ecosystem (Bubble Tea, Huh, Lip Gloss) to provide a modern, fast, and beautiful terminal user interface.
+**Musing CLI** is a project-agnostic command-line tool for managing multi-service development stacks with Docker, MongoDB, and microservices. It's built in Go using the Charm Bracelet ecosystem (Bubble Tea, Huh, Lip Gloss) to provide a modern, fast, and beautiful terminal user interface.
+
+### Design Philosophy
+
+This CLI is designed to be **completely agnostic** - it can manage any development stack with similar architecture patterns:
+- **Frontend-agnostic**: Works with Angular, React, Vue, Svelte, or any framework
+- **Backend-agnostic**: Supports Go, Node, Python, or any microservice architecture
+- Docker Compose orchestration
+- Port-based health checking (framework-independent)
+- MongoDB database deployments (adaptable to other databases)
+- SSH tunnels for remote database access
+- Local development and production environments
+
+The tool replaces slow, error-prone bash scripts with a fast, type-safe Go binary featuring a professional terminal UI.
+
+### Current Use Case: Musing-TU
+
+The CLI currently manages the **musing-tu portfolio ecosystem** (stevengregory.io):
+
+**Stack Overview**:
+- **Frontend**: Angular 21 application showcasing digital art/NFTs, blog posts, and dynamic content
+- **Backend**: 12+ Go-based microservices (APIs for art, news, quotes, Bitcoin prices, etc.)
+- **Database**: MongoDB for content storage and configuration
+- **Infrastructure**: Docker Compose (local dev), DigitalOcean (production)
+- **CI/CD**: GitHub Actions automated deployments
+
+**Portfolio Features**:
+- Digital art and NFT showcase (SuperRare, OpenSea collections)
+- Blog/news content management
+- Bitcoin price tracking
+- Random quotes and facts
+- Personal streak tracking (e.g., alcohol-free days)
+- Social network links integration
+
+This is just one example - the CLI's architecture supports any similar multi-service development environment.
 
 ### Key Facts
-- **Language**: Go (chosen for speed, type safety, and consistency with existing service layer)
+- **Language**: Go (speed, type safety, consistency with microservice ecosystems)
 - **Primary Dependencies**: Charm Bracelet ecosystem (bubbletea, lipgloss, huh), urfave/cli
-- **Binary Name**: `musing`
-- **Startup Time**: 1-3ms (50x faster than Bun, 100x faster than Node)
+- **Binary Name**: `musing` (configurable for other projects)
+- **Startup Time**: 1-3ms (50x faster than bash scripts)
 - **Distribution**: Single binary with zero runtime dependencies
+- **Portability**: Project-agnostic design adaptable to any stack
 
 ## Architecture
 

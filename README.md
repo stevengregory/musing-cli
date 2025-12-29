@@ -1,270 +1,160 @@
 # Musing CLI
 
-Professional command-line tooling for the musing-tu development stack, built with Go and the Charm Bracelet ecosystem (Bubble Tea, Huh, Lip Gloss).
+A fast command-line tool for managing multi-service development stacks with Docker, MongoDB, and microservices.
 
-## Features
+## What Does It Do?
 
-- 🎨 **Professional TUI** - Native Bubble Tea interface with Lip Gloss styling
-- ⚡ **Blazing Fast** - Native Go binary with 1-3ms startup time
-- 📊 **Live Monitoring** - Real-time service health dashboard with auto-refresh
-- 🐳 **Docker Integration** - Seamless Docker Desktop and Compose management
-- 🔒 **Production Safety** - Interactive confirmation prompts for production deployments
-- 🌐 **SSH Tunnel Monitoring** - Track DigitalOcean production tunnel status
-- 🎯 **Type Safe** - Go's type system prevents runtime errors
+This CLI provides professional tooling for complex development environments:
+
+- **Live monitoring dashboard** - Real-time health checks for all services (3-second refresh)
+- **Docker stack management** - Start/stop/rebuild services with auto-detection
+- **Safe deployments** - MongoDB data sync with confirmations and tunnel verification
+- **Beautiful TUI** - Professional terminal UI powered by Charm Bracelet
+
+## My Workflow
+
+This is my command center for [stevengregory.io](https://stevengregory.io). A tool managing my full-stack application: Angular frontend, Go service layer, and MongoDB database. Built for speedy local development and deployment of decoupled, multi-service stacks.
+
+## Prerequisites
+
+- Go 1.21 or higher
+- Docker Desktop (for `dev` command)
+- MongoDB (local or remote access)
+- Docker Compose (for service orchestration)
 
 ## Installation
 
-### Build from Source
-
 ```bash
-cd musing-cli
+# Build from source
 go build -o musing
-```
 
-### Optional: Install Globally
-
-```bash
-# Move binary to PATH
+# Install globally
 sudo cp musing /usr/local/bin/
-
-# Now use from anywhere
-musing dev
 ```
 
 ## Commands
 
-### `musing monitor`
+### monitor
 
-Live monitoring dashboard with real-time health checks (updates every 3 seconds).
+Live dashboard with real-time health checks.
 
 ```bash
 musing monitor
 ```
 
 **Features:**
-- 📊 Real-time service health monitoring
-- 🎨 Organized sections: Docker → Database → API Services → Frontend → SSH Tunnel(s)
-- 🔴🟢 Visual status indicators (● green = running, ● red = down)
-- ⌨️ Keyboard controls: `q`, `Ctrl+C`, or `Esc` to exit
-- 🔄 Auto-refresh every 3 seconds
+- Real-time service health monitoring (3-second refresh)
+- Color-coded status indicators for each service
+- Organized sections: Docker → Database → API Services → Frontend → SSH Tunnels
+- Keyboard controls: `q`, `Ctrl+C`, or `Esc` to exit
 
-**Output:**
-```
-╭──────────────────────────────────────────────╮
-│  Development Stack - Live Monitor           │
-╰──────────────────────────────────────────────╯
-
-Updated: 14:32:15 PST
-
-━━━ Docker ━━━
-  ● Docker Desktop
-
-━━━ Database ━━━
-  ● MongoDB               :27018
-
-━━━ API Services (12) ━━━
-  ● networks-api          :8085
-  ● random-facts-api      :8082
-  ● alcohol-free-api      :8081
-  ...
-
-━━━ Frontend ━━━
-  ● Angular               :3000
-
-━━━ SSH Tunnel(s) ━━━
-  ● DigitalOcean          :27019
-
-Press q or Ctrl+C to exit • Updates every 3 seconds
-```
-
-### `musing dev`
+### dev
 
 Manage the development stack.
 
 ```bash
-# Start all services
-musing dev
-
-# Force rebuild images
-musing dev --rebuild
-
-# Start and follow logs
-musing dev --logs
-
-# Stop all services
-musing dev --stop
+musing dev              # Start all services
+musing dev --rebuild    # Force rebuild images
+musing dev --logs       # Start and follow logs
+musing dev --stop       # Stop all services
 ```
 
 **Features:**
-- 🔍 Auto-detects and starts Docker Desktop if needed
-- 📂 Validates required API repositories exist
-- ⏳ Progress indicators for long operations
-- 🏥 Health checks for MongoDB and Angular
-- 📦 Displays service URLs in styled format
-- 💡 Helpful next-step suggestions
+- Auto-detects and starts Docker Desktop if needed
+- Validates required repositories exist
+- Health checks for MongoDB and frontend
+- Progress indicators for long operations
 
-### `musing deploy`
+### deploy
 
-Deploy MongoDB data collections to development or production.
+Deploy MongoDB collections to dev or production.
 
 ```bash
-# Deploy all collections to development (default)
-musing deploy
-
-# Deploy specific collection to development
-musing deploy news
-
-# Deploy to production (with confirmation prompt)
-musing deploy --env prod
-musing deploy -e prod
-
-# Deploy specific collection to production
-musing deploy news --env prod
-
-# Flags can go before or after arguments
-musing deploy --env prod news
-musing deploy news --env prod
+musing deploy              # All collections to dev
+musing deploy news         # Specific collection to dev
+musing deploy --env prod   # All to prod (with confirmation)
+musing deploy news -e prod # Specific collection to prod
 ```
 
-**Features:**
-- 🔒 **Production Safety**: Interactive confirmation before prod deployments
-- 🌐 **Tunnel Verification**: Checks SSH tunnel is open before prod deployment
-- 📁 **Flexible Targets**: Deploy all collections or specific ones (news, projects, etc.)
-- ⚡ **Smart Defaults**: Deploys to dev environment by default
-- 🎯 **Flexible Syntax**: Flags work before or after arguments (like docker, kubectl, git)
+**Production safety:**
+- Interactive confirmation required
+- Verifies SSH tunnel connectivity
+- Clear warnings about data overwrite
 
-## UX Highlights
+## Configuration
 
-### Bubble Tea TUI
+Create a `.musing.yaml` (or similar) file in your project root to define your stack:
 
-- **Live Monitor**: Full-screen interactive dashboard with auto-refresh
-- **Keyboard Controls**: Intuitive navigation (q/Ctrl+C/Esc to exit)
-- **Alt Screen Buffer**: No terminal clutter, clean return to prompt
+```yaml
+services:
+  # Frontend
+  - name: Angular
+    port: 3000
+    type: frontend
 
-### Lip Gloss Styling
+  # API Services
+  - name: my-api
+    port: 8080
+    type: api
 
-- **Headers**: Rounded borders with magenta/purple theme
-- **Sections**: Organized with styled dividers (━━━)
-- **Status Indicators**: Color-coded dots (green/red)
-- **Timestamps**: Subtle gray italic formatting
+# Database configuration
+database:
+  type: MongoDB
+  name: mydb
+  devPort: 27018
+  prodPort: 27019
+  dataDir: data
+```
 
-### Huh Prompts
+## Why This Approach?
 
-- **Native Confirmations**: Built-in Bubble Tea prompts (no external dependencies)
-- **Production Safety**: Clear yes/no prompts for destructive operations
-- **Keyboard Friendly**: Tab/Enter navigation
+**Project-agnostic design** means you can adapt it for any stack:
+- Works with any frontend framework (Angular, React, Vue, etc.)
+- Backend-agnostic (Go, Node, Python microservices)
+- Service configurations in `internal/config/config.go`
+- Docker Compose integration
+- Port-based health checking (framework-independent)
+- MongoDB deployment patterns
+- SSH tunnel support for remote databases
 
-### Professional Polish
+**Key benefits**:
+- Fast startup (1-3ms)
+- Type-safe Go prevents runtime errors
+- Professional terminal UI with Bubble Tea
+- Single binary with zero dependencies
 
-- No emoji characters (clean, professional output)
-- Consistent color scheme (magenta/purple accent)
-- Clear visual hierarchy
-- Fast, responsive interface
+## Development
+
+```bash
+# Run without installing
+go run . monitor
+go run . dev
+
+# Manage dependencies
+go mod tidy
+```
 
 ## Architecture
 
 ```
 musing-cli/
-├── main.go                          # Entry point with arg reordering
-├── cmd/
-│   ├── dev.go                       # Dev command with Docker management
-│   ├── deploy.go                    # MongoDB deployment with safety checks
-│   └── monitor.go                   # Live TUI monitoring dashboard
+├── main.go              # Entry point
+├── cmd/                 # Commands (dev, deploy, monitor)
 ├── internal/
-│   ├── config/
-│   │   └── config.go                # Service configurations & ports
-│   ├── docker/
-│   │   └── docker.go                # Docker Desktop & Compose operations
-│   ├── health/
-│   │   └── health.go                # Port health checks with latency
-│   ├── mongo/
-│   │   └── mongo.go                 # MongoDB deployment operations
-│   └── ui/
-│       ├── confirm.go               # Huh confirmation prompts
-│       └── ui.go                    # Styled output helpers
-└── README.md
+│   ├── config/         # Service configs & ports
+│   ├── docker/         # Docker operations
+│   ├── health/         # Health checks
+│   ├── mongo/          # MongoDB deployment
+│   └── ui/             # Styled output & prompts
 ```
 
-## Comparison with Bash Scripts
+**Tech Stack**:
+- Go (fast, type-safe, single binary)
+- Bubble Tea (interactive TUI)
+- Lip Gloss (terminal styling)
+- Huh (confirmation prompts)
 
-| Feature | Bash Scripts | Musing CLI |
-|---------|-------------|-----------|
-| Startup Time | ~20-50ms | 1-3ms |
-| Type Safety | ❌ | ✅ |
-| Error Handling | Basic | Comprehensive |
-| UX | Basic colors | Bubble Tea TUI |
-| Testability | Difficult | Easy |
-| Cross-platform | Unix only | Any OS |
-| Live Monitoring | ❌ | ✅ (3s refresh) |
-| Production Safety | ❌ | ✅ (confirmations) |
-| SSH Tunnel Monitoring | ❌ | ✅ |
-
-## Development
-
-### Run without Building
-
-```bash
-go run . status
-go run . dev --stop
-```
-
-### Add New Command
-
-1. Create `cmd/yourcommand.go`
-2. Implement command using urfave/cli patterns
-3. Add to `main.go` commands slice
-4. Rebuild: `go build -o musing`
-
-### Using UI Helpers
-
-```go
-import "github.com/stevengregory/musing-cli/internal/ui"
-
-// Styled output
-ui.Success("Operation succeeded")
-ui.Error("Operation failed")
-ui.Info("Some information")
-
-// Confirmations (using Huh)
-if ui.Confirm("Continue?", false) {
-    // User said yes
-}
-
-// Advanced confirmations
-confirmed := ui.ConfirmWithBubbles(ui.ConfirmOptions{
-    Title:       "Deploy to production?",
-    Description: "This will overwrite production data",
-    Affirmative: "Yes, deploy",
-    Negative:    "Cancel",
-    Inline:      true,
-})
-```
-
-## Future Enhancements
-
-- [x] **Deploy Command** - MongoDB data deployment with prod safety ✅
-- [x] **Live Monitoring** - Real-time TUI dashboard ✅
-- [x] **SSH Tunnel Monitoring** - Track production tunnel status ✅
-- [ ] **Tunnel Command** - Auto-start/stop SSH tunnels
-- [ ] **Build Command** - Angular build with size analysis
-- [ ] **Logs Command** - Selective log streaming by service
-- [ ] **Restart Command** - Restart individual services
-- [ ] **Config Command** - Manage CLI configuration (default ports, colors, etc.)
-- [ ] **Split-pane TUI** - Logs + status in one view
-
-## Why Go + Charm Bracelet?
-
-1. **Go** - Service layer already in Go, consistent ecosystem
-2. **Bubble Tea** - Professional TUI framework with full control
-3. **Huh** - Native form/confirmation prompts
-4. **Lip Gloss** - Beautiful styling without manual ANSI codes
-5. **Speed** - 50x faster startup than Bun, 100x faster than Node
-6. **Distribution** - Single binary, zero runtime dependencies
-7. **Native Feel** - Professional CLI/TUI experience matching kubectl, gh, docker
-
-## Contributing
-
-This is a personal development tool, but contributions welcome! The codebase is intentionally simple and well-commented.
+See [CLAUDE.md](CLAUDE.md) for detailed architecture and development guidelines.
 
 ## License
 
