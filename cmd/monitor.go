@@ -95,9 +95,10 @@ func runMonitor() error {
 
 	// Check Docker is running (don't auto-start for monitor - just inform user)
 	if err := docker.CheckRunning(); err != nil {
-		fmt.Println("\n⚠️  Docker is not running.")
-		fmt.Println("Please start Docker Desktop and try again, or run: ./musing dev")
-		return err
+		fmt.Println()
+		ui.Error("Docker is not running")
+		ui.Info("Please start Docker Desktop and try again, or run: musing dev")
+		os.Exit(1)
 	}
 
 	// Create Bubble Tea program with alternate screen
