@@ -212,10 +212,6 @@ func (m monitorModel) View() string {
 	s += headerStyle.Render("Development Stack - Live Monitor")
 	s += "\n"
 
-	// Timestamp at top
-	s += timeStyle.Render(fmt.Sprintf("Updated: %s", time.Now().Format("15:04:05 MST")))
-	s += "\n"
-
 	// Docker Section
 	dockerServices := m.getDockerServices()
 	if len(dockerServices) > 0 {
