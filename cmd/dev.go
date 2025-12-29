@@ -64,8 +64,10 @@ func stopServices() error {
 
 	// Change to project root directory
 	if err := changeToProjectRoot(); err != nil {
-		ui.Error("Failed to find project root directory")
-		return err
+		fmt.Println()
+		ui.Error("Could not find project root")
+		ui.Info("Run this command from inside a project with .musing.yaml")
+		os.Exit(1)
 	}
 
 	if err := ui.SpinWithBubbles("Stopping all services...", "docker", "compose", "down"); err != nil {
@@ -93,8 +95,10 @@ func startServices(rebuild, shouldDeployData, followLogs bool) error {
 
 	// Change to project root directory (parent of musing-cli)
 	if err := changeToProjectRoot(); err != nil {
-		ui.Error("Failed to find project root directory")
-		return err
+		fmt.Println()
+		ui.Error("Could not find project root")
+		ui.Info("Run this command from inside a project with .musing.yaml")
+		os.Exit(1)
 	}
 
 	// Ensure Docker is running (auto-start if not)

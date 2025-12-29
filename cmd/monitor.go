@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -11,6 +12,7 @@ import (
 	"github.com/stevengregory/musing-cli/internal/config"
 	"github.com/stevengregory/musing-cli/internal/docker"
 	"github.com/stevengregory/musing-cli/internal/health"
+	"github.com/stevengregory/musing-cli/internal/ui"
 	"github.com/urfave/cli/v2"
 )
 
@@ -85,9 +87,10 @@ func MonitorCommand() *cli.Command {
 func runMonitor() error {
 	// Load project configuration first
 	if _, err := config.FindProjectRoot(); err != nil {
-		fmt.Println("\n⚠️  Could not find project root.")
-		fmt.Println("Make sure you're inside a project with .musing.yaml")
-		return err
+		fmt.Println()
+		ui.Error("Could not find project root")
+		ui.Info("Run this command from inside a project with .musing.yaml")
+		os.Exit(1)
 	}
 
 	// Check Docker is running (don't auto-start for monitor - just inform user)

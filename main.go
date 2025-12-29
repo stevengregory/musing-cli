@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"log"
 	"os"
 
@@ -9,9 +10,15 @@ import (
 )
 
 func main() {
+	// Disable default log output (timestamp prefixes)
+	// This suppresses urfave/cli's internal error logging
+	log.SetOutput(io.Discard)
+	log.SetFlags(0)
+
 	app := &cli.App{
-		Name:  "musing",
-		Usage: "Development tooling for musing-tu project",
+		Name:     "musing",
+		Usage:    "Development tooling for musing-tu project",
+		ErrWriter: io.Discard, // Suppress framework error output
 		Commands: []*cli.Command{
 			cmd.DevCommand(),
 			cmd.DeployCommand(),
@@ -22,9 +29,7 @@ func main() {
 	// Reorder args to allow flags after arguments (like most CLIs)
 	args := reorderArgs(os.Args)
 
-	if err := app.Run(args); err != nil {
-		log.Fatal(err)
-	}
+	_ = app.Run(args)
 }
 
 // reorderArgs moves flags before positional arguments to work around urfave/cli limitation

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/charmbracelet/lipgloss"
@@ -56,7 +57,10 @@ func DeployCommand() *cli.Command {
 func deployData(collection, env string) error {
 	cfg := config.GetConfig()
 	if cfg == nil {
-		return fmt.Errorf("no configuration loaded")
+		fmt.Println()
+		ui.Error("No configuration loaded")
+		ui.Info("Run 'musing dev' first to initialize the project")
+		os.Exit(1)
 	}
 
 	fmt.Println(deployHeaderStyle.Render(fmt.Sprintf("%s Deployment - %s", cfg.Database.Type, env)))
@@ -103,8 +107,10 @@ func deployData(collection, env string) error {
 	// Get data directory from project root
 	projectRoot, err := config.FindProjectRoot()
 	if err != nil {
+		fmt.Println()
 		ui.Error("Could not find project root")
-		return err
+		ui.Info("Run this command from inside a project with .musing.yaml")
+		os.Exit(1)
 	}
 	dataDir := filepath.Join(projectRoot, cfg.Database.DataDir)
 
