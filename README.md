@@ -76,6 +76,12 @@ musing deploy --env prod   # All to prod (with confirmation)
 musing deploy news -e prod # Specific collection to prod
 ```
 
+**How it works:**
+- Auto-discovers all `.json` files in your data directory
+- Collection names derived from filenames (e.g., `news.json` → `news` collection)
+- Automatically detects JSON arrays vs. objects
+- No manual configuration needed
+
 **Production safety:**
 - Interactive confirmation required
 - Verifies SSH tunnel connectivity
