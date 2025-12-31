@@ -110,6 +110,11 @@ database:
   devPort: 27018
   prodPort: 27019
   dataDir: data
+
+# Optional: Production deployment settings
+production:
+  server: root@your-server.com      # SSH server for production access
+  remoteDBPort: 27017                # Remote database port (typically 27017 for MongoDB)
 ```
 
 ## Why This Approach?

@@ -148,8 +148,10 @@ musing deploy news -e prod # Specific collection to prod
 ```
 
 **Features**:
+- Auto-discovery: Scans data directory for .json files - no hardcoded collections
 - Production safety: Interactive confirmation before prod deployments
 - Tunnel verification: Checks SSH tunnel is open before prod deployment
+- Smart SSH hints: Generates tunnel command from config (or uses placeholder)
 - Flexible targets: Deploy all collections or specific ones
 - Smart defaults: Deploys to dev by default
 - Flexible syntax: Flags work before or after arguments
@@ -157,17 +159,33 @@ musing deploy news -e prod # Specific collection to prod
 **Safety Checks**:
 1. Confirms production deployment with user
 2. Verifies SSH tunnel is open (port 27019) before proceeding
-3. Clear messaging about data overwrite
+3. Generates helpful SSH tunnel command using production config if available
+4. Clear messaging about data overwrite
+
+**Configuration**:
+Optional production settings in `.musing.yaml`:
+```yaml
+production:
+  server: root@your-server.com
+  remoteDBPort: 27017
+```
+If not configured, defaults to placeholder `<your-server>` in error messages.
 
 ## Internal Packages
 
 ### config/config.go
-Centralized service configuration and port definitions.
+Centralized service configuration and port definitions loaded from `.musing.yaml`.
 
-**Key exports**:
-- `Config`: Main configuration struct
+**Key structs**:
+- `ProjectConfig`: Root configuration with services, database, and optional production settings
+- `ServiceConfig`: Individual service definition (name, port, type)
+- `DatabaseConfig`: Database configuration (type, name, ports, dataDir)
+- `ProductionConfig`: Optional production deployment settings (server, remoteDBPort)
+
+**Key functions**:
+- `FindProjectRoot()`: Searches upward for .musing.yaml and loads config
 - `GetConfig()`: Returns singleton config instance
-- Service definitions with ports, names, health check endpoints
+- `GetAPIRepos()`: Dynamically discovers API repository paths from config
 
 ### docker/docker.go
 Docker Desktop and Docker Compose operations.
@@ -186,12 +204,21 @@ Port-based health checking with latency measurement.
 - Used by monitor command for real-time status
 
 ### mongo/deploy.go
-MongoDB deployment operations.
+MongoDB deployment operations with auto-discovery.
 
 **Key functions**:
-- Deploy collections to dev or prod
-- Connection string management
-- Data migration operations
+- `DiscoverCollections(dataDir string)`: Auto-discovers all .json files in data directory
+- `isJSONArray(filePath string)`: Auto-detects if JSON file is array or object
+- `DeployCollection(uri, db, key, dataDir)`: Deploys single collection to MongoDB
+- `DeployAll(uri, db, dataDir)`: Deploys all discovered collections
+- `getCollectionKeys(collections)`: Returns list of available collection keys for errors
+
+**How it works**:
+- Scans data directory for .json files at runtime
+- Collection names derived from filenames (e.g., `news.json` → `news` collection)
+- Hyphens converted to underscores (e.g., `social-networks.json` → `social_networks`)
+- Automatically detects JSON array vs object format for mongoimport --jsonArray flag
+- No hardcoded collection definitions - completely project-agnostic
 
 ### ui/
 UI helper functions for styled output and user interaction.

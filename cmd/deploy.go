@@ -85,7 +85,10 @@ func deployData(collection, env string) error {
 		status := health.CheckPort(port)
 		if !status.Open {
 			ui.Error(fmt.Sprintf("%s tunnel not open on port %d", cfg.Database.Type, port))
-			ui.Info(fmt.Sprintf("Open SSH tunnel first: ssh -f -N -L %d:localhost:%d root@<your-server>", cfg.Database.ProdPort, cfg.Database.DevPort))
+
+			// Generate helpful SSH tunnel command
+			tunnelCmd := generateTunnelCommand(cfg)
+			ui.Info(fmt.Sprintf("Open SSH tunnel first: %s", tunnelCmd))
 			return fmt.Errorf("production %s not accessible", cfg.Database.Type)
 		}
 		ui.Success("SSH tunnel is open")
@@ -133,4 +136,24 @@ func deployData(collection, env string) error {
 	}
 
 	return nil
+}
+
+// generateTunnelCommand creates the SSH tunnel command from config
+func generateTunnelCommand(cfg *config.ProjectConfig) string {
+	// Default values if production config not set
+	server := "<your-server>"
+	remotePort := cfg.Database.DevPort
+
+	// Use config values if available
+	if cfg.Production != nil {
+		if cfg.Production.Server != "" {
+			server = cfg.Production.Server
+		}
+		if cfg.Production.RemoteDBPort != 0 {
+			remotePort = cfg.Production.RemoteDBPort
+		}
+	}
+
+	return fmt.Sprintf("ssh -f -N -L %d:localhost:%d %s",
+		cfg.Database.ProdPort, remotePort, server)
 }

@@ -10,8 +10,9 @@ import (
 
 // ProjectConfig represents the .musing.yaml configuration
 type ProjectConfig struct {
-	Services []ServiceConfig `yaml:"services"`
-	Database DatabaseConfig  `yaml:"database"`
+	Services   []ServiceConfig   `yaml:"services"`
+	Database   DatabaseConfig    `yaml:"database"`
+	Production *ProductionConfig `yaml:"production,omitempty"` // Optional production config
 }
 
 // ServiceConfig represents a service in the stack
@@ -28,6 +29,12 @@ type DatabaseConfig struct {
 	DevPort  int    `yaml:"devPort"`
 	ProdPort int    `yaml:"prodPort"`
 	DataDir  string `yaml:"dataDir"` // Relative path to data directory
+}
+
+// ProductionConfig represents optional production deployment settings
+type ProductionConfig struct {
+	Server       string `yaml:"server"`       // SSH server (e.g., "root@your-server.com")
+	RemoteDBPort int    `yaml:"remoteDBPort"` // Remote database port (typically same as devPort)
 }
 
 var currentConfig *ProjectConfig
