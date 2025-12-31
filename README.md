@@ -13,7 +13,7 @@ This CLI provides professional tooling for complex development environments:
 
 ## My Workflow
 
-This is my command center for [stevengregory.io](https://stevengregory.io). A tool managing my full-stack application: Angular frontend, Go service layer, and MongoDB database. Built for speedy local development and deployment of decoupled, multi-service stacks.
+This is my DevOps command center for [stevengregory.io](https://stevengregory.io). A tool managing my full-stack application: Angular frontend, Go service layer, and MongoDB database. Built for speedy local development and deployment of decoupled, multi-service stacks.
 
 ## Prerequisites
 
@@ -89,7 +89,7 @@ musing deploy news -e prod # Specific collection to prod
 
 ## Configuration
 
-Create a `.musing.yaml` (or similar) file in your project root to define your stack:
+Create a `.musing.yaml` file in your project root to define your stack:
 
 ```yaml
 services:
