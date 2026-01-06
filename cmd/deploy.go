@@ -37,11 +37,6 @@ func DeployCommand() *cli.Command {
 				Value:   "dev",
 			},
 		},
-		Before: func(c *cli.Context) error {
-			// Reorder args to handle flags after arguments
-			// This allows both "deploy --env prod news" and "deploy news --env prod"
-			return nil
-		},
 		Action: func(c *cli.Context) error {
 			collection := "all"
 			if c.NArg() > 0 {
