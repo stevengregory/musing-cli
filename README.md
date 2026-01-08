@@ -1,5 +1,7 @@
 # Musing CLI
 
+![Musing CLI Help](images/help-cmd-0002.png)
+
 A fast command-line tool for managing multi-service development stacks with Docker, MongoDB, and microservices.
 
 ## What Does It Do?
@@ -43,6 +45,7 @@ musing monitor
 ```
 
 **Features:**
+
 - Real-time service health monitoring (3-second refresh)
 - Color-coded status indicators for each service
 - Organized sections: Docker → Database → API Services → Frontend → SSH Tunnels
@@ -60,6 +63,7 @@ musing dev --stop       # Stop all services
 ```
 
 **Features:**
+
 - Auto-detects and starts Docker Desktop if needed
 - Validates required repositories exist
 - Health checks for MongoDB and frontend
@@ -77,12 +81,14 @@ musing deploy news -e prod # Specific collection to prod
 ```
 
 **How it works:**
+
 - Auto-discovers all `.json` files in your data directory
 - Collection names derived from filenames (e.g., `news.json` → `news` collection)
 - Automatically detects JSON arrays vs. objects
 - No manual configuration needed
 
 **Production safety:**
+
 - Interactive confirmation required
 - Verifies SSH tunnel connectivity
 - Clear warnings about data overwrite
@@ -113,13 +119,14 @@ database:
 
 # Optional: Production deployment settings
 production:
-  server: root@your-server.com      # SSH server for production access
-  remoteDBPort: 27017                # Remote database port (typically 27017 for MongoDB)
+  server: root@your-server.com # SSH server for production access
+  remoteDBPort: 27017 # Remote database port (typically 27017 for MongoDB)
 ```
 
 ## Why This Approach?
 
 **Project-agnostic design** means you can adapt it for any stack:
+
 - Works with any frontend framework (Angular, React, Vue, etc.)
 - Backend-agnostic (Go, Node, Python microservices)
 - Service configurations in `internal/config/config.go`
@@ -129,6 +136,7 @@ production:
 - SSH tunnel support for remote databases
 
 **Key benefits**:
+
 - Fast startup (1-3ms)
 - Type-safe Go prevents runtime errors
 - Professional terminal UI with Bubble Tea
@@ -160,6 +168,7 @@ musing-cli/
 ```
 
 **Tech Stack**:
+
 - Go (fast, type-safe, single binary)
 - Bubble Tea (interactive TUI)
 - Lip Gloss (terminal styling)
@@ -170,16 +179,9 @@ See [CLAUDE.md](CLAUDE.md) for detailed architecture and development guidelines.
 ## Screenshots
 
 <details>
-<summary>Help Command (click to expand)</summary>
-
-![Musing CLI Help](images/help-cmd-001.png)
-
-</details>
-
-<details>
 <summary>Monitor Command (click to expand)</summary>
 
-![Musing Monitor](images/monitor-cmd-001.png)
+![Musing Monitor](images/monitor-cmd-0001.png)
 
 </details>
 

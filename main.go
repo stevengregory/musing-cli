@@ -34,7 +34,7 @@ func main() {
 
 	app := &cli.App{
 		Name:     "musing",
-		Usage:    "Development tooling for musing-tu project",
+		Usage:    "CLI for managing multi-service development stacks",
 		ErrWriter: io.Discard, // Suppress framework error output
 		Commands: []*cli.Command{
 			cmd.DevCommand(),
