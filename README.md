@@ -167,6 +167,22 @@ musing-cli/
 
 See [CLAUDE.md](CLAUDE.md) for detailed architecture and development guidelines.
 
+## Screenshots
+
+<details>
+<summary>Help Command (click to expand)</summary>
+
+![Musing CLI Help](images/help-cmd-001.png)
+
+</details>
+
+<details>
+<summary>Monitor Command (click to expand)</summary>
+
+![Musing Monitor](images/monitor-cmd-001.png)
+
+</details>
+
 ## License
 
 MIT
