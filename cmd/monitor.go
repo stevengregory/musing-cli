@@ -275,8 +275,14 @@ func (m monitorModel) getDockerServices() []ServiceHealth {
 
 func (m monitorModel) getSSHTunnelServices() []ServiceHealth {
 	var sshSvcs []ServiceHealth
+	cfg := config.GetConfig()
+	if cfg == nil {
+		return sshSvcs
+	}
+
 	for _, svc := range m.services {
-		if svc.Name == "DigitalOcean" {
+		// Match production tunnel port
+		if svc.Port == cfg.Database.ProdPort {
 			sshSvcs = append(sshSvcs, svc)
 		}
 	}
@@ -316,8 +322,8 @@ func (m monitorModel) getAPIServices() []ServiceHealth {
 	}
 
 	for _, svc := range m.services {
-		// Exclude: database, frontend, docker, and ssh tunnel
-		if svc.Name != cfg.Database.Type && svc.Name != "Angular" && svc.Name != "Docker Desktop" && svc.Name != "DigitalOcean" {
+		// Exclude: database, frontend, docker, and ssh tunnel (check by port)
+		if svc.Name != cfg.Database.Type && svc.Name != "Angular" && svc.Name != "Docker Desktop" && svc.Port != cfg.Database.ProdPort {
 			apis = append(apis, svc)
 		}
 	}
@@ -408,10 +414,16 @@ func checkHealthCmd() tea.Cmd {
 			Status: getStatus(dbStatus.Open),
 		})
 
-		// Check DigitalOcean SSH Tunnel (to production database)
+		// Check Production SSH Tunnel (to production database)
 		prodTunnelStatus := health.CheckPort(cfg.Database.ProdPort)
+		var tunnelName string
+		if cfg.Production != nil && cfg.Production.Server != "" {
+			tunnelName = cfg.Production.Server
+		} else {
+			tunnelName = "Production"
+		}
 		services = append(services, ServiceHealth{
-			Name:   "DigitalOcean",
+			Name:   tunnelName,
 			Port:   cfg.Database.ProdPort,
 			Status: getStatus(prodTunnelStatus.Open),
 		})
