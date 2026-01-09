@@ -27,11 +27,11 @@ This is my DevOps command center for [stevengregory.io](https://stevengregory.io
 ## Installation
 
 ```bash
-# Build from source
-go build -o musing ./cmd/musing
+# Build from source (with automatic version detection)
+make build
 
-# Install globally
-sudo cp musing /usr/local/bin/
+# Build and install globally
+make install
 ```
 
 ## Commands
@@ -149,8 +149,8 @@ production:
 go run ./cmd/musing monitor
 go run ./cmd/musing dev
 
-# Build for development
-go build -o musing ./cmd/musing
+# Build for development (with version detection)
+make build
 
 # Manage dependencies
 go mod tidy
