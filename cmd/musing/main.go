@@ -33,15 +33,20 @@ func main() {
 	log.SetOutput(io.Discard)
 	log.SetFlags(0)
 
-	// Print ASCII art banner with color (skip for monitor command which has its own banner)
-	if len(os.Args) < 2 || os.Args[1] != "monitor" {
+	// Print ASCII art banner with color (skip for monitor and version commands)
+	if len(os.Args) < 2 || (os.Args[1] != "monitor" && os.Args[1] != "--version" && os.Args[1] != "-v") {
 		PrintBanner()
 	}
 
+	// Custom version printer - just the version number
+	cli.VersionPrinter = func(c *cli.Context) {
+		fmt.Println(c.App.Version)
+	}
+
 	app := &cli.App{
-		Name:     "musing",
-		Usage:    "CLI for managing multi-service development stacks",
-		Version:  version,
+		Name:      "musing",
+		Usage:     "CLI for managing multi-service development stacks",
+		Version:   version,
 		ErrWriter: io.Discard, // Suppress framework error output
 		Commands: []*cli.Command{
 			cmd.DevCommand(),
