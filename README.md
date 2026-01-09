@@ -93,6 +93,14 @@ musing deploy news -e prod # Specific collection to prod
 - Verifies SSH tunnel connectivity
 - Clear warnings about data overwrite
 
+### version
+
+Check the installed version.
+
+```bash
+musing --version
+```
+
 ## Configuration
 
 Create a `.musing.yaml` file in your project root to define your stack:
