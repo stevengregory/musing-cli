@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	version = "dev"
+	version = "0.1.0" // Updated by ldflags during release
 	commit  = "none"
 	date    = "unknown"
 )
