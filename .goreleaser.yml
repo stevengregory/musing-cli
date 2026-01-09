@@ -1,0 +1,108 @@
+# GoReleaser configuration for musing CLI
+# Reference: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    # Clean up dependencies
+    - go mod tidy
+
+builds:
+  - id: musing
+    main: ./cmd/musing
+    binary: musing
+
+    # Version injection
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+    # Build targets
+    goos:
+      - linux
+      - darwin
+      - windows
+
+    goarch:
+      - amd64
+      - arm64
+
+    # Ignore combinations
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: musing-archive
+    # Archive naming
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+
+    # Files to include in archive
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance Improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: 'Refactors'
+      regexp: '^.*?refactor(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: stevengregory
+    name: musing-cli
+
+  # Draft release for manual review before publishing
+  draft: false
+
+  # Release name template
+  name_template: "{{.ProjectName}} v{{.Version}}"
+
+  # Footer for release notes
+  footer: |
+    ## Installation
+
+    ### Homebrew (Coming Soon)
+    ```bash
+    brew install stevengregory/musing/musing
+    ```
+
+    ### Binary Download
+    Download the appropriate binary for your platform from the assets below.
+
+    ### From Source
+    ```bash
+    go install github.com/stevengregory/musing-cli/cmd/musing@{{.Tag}}
+    ```
