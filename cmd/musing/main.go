@@ -12,6 +12,12 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 // PrintBanner displays the ASCII art banner
 func PrintBanner() {
 	banner := figure.NewFigure("Musing", "", true)
@@ -35,6 +41,7 @@ func main() {
 	app := &cli.App{
 		Name:     "musing",
 		Usage:    "CLI for managing multi-service development stacks",
+		Version:  version,
 		ErrWriter: io.Discard, // Suppress framework error output
 		Commands: []*cli.Command{
 			cmd.DevCommand(),
