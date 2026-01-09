@@ -53,8 +53,9 @@ This is just one example - the CLI's architecture supports any similar multi-ser
 ### Directory Structure
 ```
 musing-cli/
-├── main.go                   # Entry point with arg reordering and ASCII banner
-├── cmd/                      # Command implementations
+├── cmd/
+│   ├── musing/
+│   │   └── main.go          # Entry point with arg reordering and ASCII banner
 │   ├── dev.go               # Development stack management
 │   ├── deploy.go            # MongoDB deployment with safety checks
 │   └── monitor.go           # Live TUI monitoring dashboard
@@ -80,14 +81,14 @@ musing-cli/
 
 ### Key Patterns
 
-#### 1. Argument Reordering (main.go:52-80)
+#### 1. Argument Reordering (cmd/musing/main.go:52-80)
 The `reorderArgs()` function allows flags to appear after positional arguments (like `docker`, `kubectl`, `git`):
 ```bash
 musing deploy news --env prod  # Works
 musing deploy --env prod news  # Also works
 ```
 
-#### 2. Banner Display (main.go:16-22, 30-33)
+#### 2. Banner Display (cmd/musing/main.go:16-22, 30-33)
 ASCII art banner is shown for all commands EXCEPT `monitor` (which has its own full-screen TUI).
 
 #### 3. UI Styling
@@ -272,13 +273,13 @@ if !ui.Confirm("Deploy to production?", false) {
 
 ### Building
 ```bash
-go build -o musing
+go build -o musing ./cmd/musing
 ```
 
 ### Running Without Building
 ```bash
-go run . monitor
-go run . dev --stop
+go run ./cmd/musing monitor
+go run ./cmd/musing dev --stop
 ```
 
 ### Installing Globally
@@ -322,10 +323,10 @@ Roadmap items documented in README.md:
 **Solution**: Verify Docker Desktop is running, check `docker/docker.go` implementation
 
 ### Issue: Flags not recognized
-**Solution**: Verify `reorderArgs()` in `main.go` is handling flag correctly
+**Solution**: Verify `reorderArgs()` in `cmd/musing/main.go` is handling flag correctly
 
 ### Issue: Banner showing in monitor
-**Solution**: Check `main.go:31` condition to skip banner for monitor command
+**Solution**: Check `cmd/musing/main.go:31` condition to skip banner for monitor command
 
 ## Dependencies Reference
 
@@ -343,7 +344,7 @@ Heavy use of: `os/exec`, `net`, `time`, `strings`, `fmt`
 
 ## File Modification Notes
 
-- **main.go**: Banner logic, arg reordering, command registration
+- **cmd/musing/main.go**: Banner logic, arg reordering, command registration
 - **cmd/*.go**: Command implementations - each is self-contained
 - **internal/config/config.go**: Add new services/ports here
 - **internal/health/health.go**: Modify health check logic here

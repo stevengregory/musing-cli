@@ -28,7 +28,7 @@ This is my DevOps command center for [stevengregory.io](https://stevengregory.io
 
 ```bash
 # Build from source
-go build -o musing
+go build -o musing ./cmd/musing
 
 # Install globally
 sudo cp musing /usr/local/bin/
@@ -146,8 +146,11 @@ production:
 
 ```bash
 # Run without installing
-go run . monitor
-go run . dev
+go run ./cmd/musing monitor
+go run ./cmd/musing dev
+
+# Build for development
+go build -o musing ./cmd/musing
 
 # Manage dependencies
 go mod tidy
@@ -157,8 +160,12 @@ go mod tidy
 
 ```
 musing-cli/
-├── main.go              # Entry point
-├── cmd/                 # Commands (dev, deploy, monitor)
+├── cmd/
+│   ├── musing/
+│   │   └── main.go     # Entry point
+│   ├── dev.go          # Dev command
+│   ├── deploy.go       # Deploy command
+│   └── monitor.go      # Monitor command
 ├── internal/
 │   ├── config/         # Service configs & ports
 │   ├── docker/         # Docker operations
