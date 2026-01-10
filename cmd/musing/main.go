@@ -27,14 +27,24 @@ func PrintBanner() {
 	fmt.Println(bannerStyle.Render(banner.String()))
 }
 
+// shouldShowBanner returns true if the banner should be displayed
+func shouldShowBanner() bool {
+	if len(os.Args) < 2 {
+		return true
+	}
+	// Skip banner for monitor and version commands
+	cmd := os.Args[1]
+	return cmd != "monitor" && cmd != "--version" && cmd != "-v"
+}
+
 func main() {
 	// Disable default log output (timestamp prefixes)
 	// This suppresses urfave/cli's internal error logging
 	log.SetOutput(io.Discard)
 	log.SetFlags(0)
 
-	// Print ASCII art banner with color (skip for monitor and version commands)
-	if len(os.Args) < 2 || (os.Args[1] != "monitor" && os.Args[1] != "--version" && os.Args[1] != "-v") {
+	// Print ASCII art banner with color
+	if shouldShowBanner() {
 		PrintBanner()
 	}
 
