@@ -26,6 +26,15 @@ This is my DevOps command center for [stevengregory.io](https://stevengregory.io
 
 ## Installation
 
+### Homebrew (Recommended)
+
+```bash
+brew tap stevengregory/musing
+brew install musing
+```
+
+### From Source
+
 ```bash
 # Build from source (with automatic version detection)
 make build
