@@ -50,6 +50,15 @@ func DeployCommand() *cli.Command {
 }
 
 func deployData(collection, env string) error {
+	// Find and load project configuration
+	_, err := config.FindProjectRoot()
+	if err != nil {
+		fmt.Println()
+		ui.Error("Could not find project root")
+		ui.Info("Run this command from inside a project with .musing.yaml")
+		os.Exit(1)
+	}
+
 	cfg := config.GetConfig()
 	if cfg == nil {
 		fmt.Println()
@@ -103,13 +112,7 @@ func deployData(collection, env string) error {
 	}
 
 	// Get data directory from project root
-	projectRoot, err := config.FindProjectRoot()
-	if err != nil {
-		fmt.Println()
-		ui.Error("Could not find project root")
-		ui.Info("Run this command from inside a project with .musing.yaml")
-		os.Exit(1)
-	}
+	projectRoot, _ := config.FindProjectRoot() // Already validated above
 	dataDir := filepath.Join(projectRoot, cfg.Database.DataDir)
 
 	fmt.Println()
