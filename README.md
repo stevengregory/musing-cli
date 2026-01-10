@@ -33,6 +33,11 @@ brew tap stevengregory/musing
 brew install musing
 ```
 
+**Upgrading:**
+```bash
+brew upgrade musing
+```
+
 ### From Source
 
 ```bash
