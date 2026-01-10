@@ -19,7 +19,6 @@ This is my DevOps command center for [stevengregory.io](https://stevengregory.io
 
 ## Prerequisites
 
-- Go 1.21 or higher
 - Docker Desktop (for `dev` command)
 - MongoDB (local or remote access)
 - Docker Compose (for service orchestration)
@@ -38,13 +37,15 @@ brew install musing
 brew upgrade musing
 ```
 
-### From Source
+### From Source (Developers)
+
+For contributors or those who want to build from source:
 
 ```bash
-# Build from source (with automatic version detection)
+# Requires Go 1.21 or higher
 make build
 
-# Build and install globally
+# Install globally
 make install
 ```
 
