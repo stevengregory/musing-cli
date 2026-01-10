@@ -48,7 +48,8 @@ func main() {
 		PrintBanner()
 	}
 
-	// Custom version printer - just the version number
+	// Custom version printer - outputs only the version number (like bun -v)
+	// This provides clean, parseable output for scripts and automation
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Println(c.App.Version)
 	}
