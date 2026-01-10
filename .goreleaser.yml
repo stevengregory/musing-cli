@@ -79,6 +79,26 @@ changelog:
     - title: Others
       order: 999
 
+brews:
+  - name: musing
+    repository:
+      owner: stevengregory
+      name: homebrew-musing
+      token: "{{ .Env.GITHUB_TOKEN }}"
+
+    directory: Formula
+    homepage: https://github.com/stevengregory/musing-cli
+    description: "CLI for managing multi-service development stacks"
+    license: MIT
+
+    # Install pre-built binary from archive
+    install: |
+      bin.install "musing"
+
+    # Test the installed binary
+    test: |
+      assert_match version.to_s, shell_output("#{bin}/musing --version")
+
 release:
   github:
     owner: stevengregory
@@ -94,9 +114,10 @@ release:
   footer: |
     ## Installation
 
-    ### Homebrew (Coming Soon)
+    ### Homebrew
     ```bash
-    brew install stevengregory/musing/musing
+    brew tap stevengregory/musing
+    brew install musing
     ```
 
     ### Binary Download
