@@ -1,6 +1,6 @@
 # Musing CLI
 
-![Musing CLI Help](images/help-cmd-0002.png)
+![Musing CLI Help](images/help-cmd-00002.png)
 
 A fast command-line tool for managing multi-service development stacks with Docker, MongoDB, and microservices.
 
