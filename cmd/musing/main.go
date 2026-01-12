@@ -64,6 +64,7 @@ func main() {
 			cmd.DevCommand(),
 			cmd.DeployCommand(),
 			cmd.MonitorCommand(),
+			cmd.CompletionCommand(),
 		},
 	}
 
