@@ -51,13 +51,7 @@ func DeployCommand() *cli.Command {
 
 func deployData(collection, env string) error {
 	// Find and load project configuration
-	_, err := config.FindProjectRoot()
-	if err != nil {
-		fmt.Println()
-		ui.Error("Could not find project root")
-		ui.Info("Run this command from inside a project with .musing.yaml")
-		os.Exit(1)
-	}
+	config.MustFindProjectRoot()
 
 	cfg := config.GetConfig()
 	if cfg == nil {

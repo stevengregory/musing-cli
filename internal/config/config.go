@@ -99,6 +99,18 @@ func GetConfig() *ProjectConfig {
 	return currentConfig
 }
 
+// MustFindProjectRoot finds the project root or exits with a helpful error message
+func MustFindProjectRoot() string {
+	projectRoot, err := FindProjectRoot()
+	if err != nil {
+		fmt.Println()
+		fmt.Println("\033[31m✗\033[0m Could not find project root")
+		fmt.Println("\033[36mℹ\033[0m Run this command from inside a project with .musing.yaml")
+		os.Exit(1)
+	}
+	return projectRoot
+}
+
 // hasComposeFile checks if directory contains compose.yaml
 func hasComposeFile(dir string) bool {
 	composePath := filepath.Join(dir, "compose.yaml")

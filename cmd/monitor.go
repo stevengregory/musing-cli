@@ -87,12 +87,7 @@ func MonitorCommand() *cli.Command {
 
 func runMonitor() error {
 	// Load project configuration first
-	if _, err := config.FindProjectRoot(); err != nil {
-		fmt.Println()
-		ui.Error("Could not find project root")
-		ui.Info("Run this command from inside a project with .musing.yaml")
-		os.Exit(1)
-	}
+	config.MustFindProjectRoot()
 
 	// Check Docker is running (don't auto-start for monitor - just inform user)
 	if err := docker.CheckRunning(); err != nil {

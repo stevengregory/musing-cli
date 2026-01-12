@@ -93,12 +93,10 @@ func changeToProjectRoot() error {
 func startServices(rebuild, shouldDeployData, followLogs bool) error {
 	fmt.Println(devHeaderStyle.Render("Development Stack"))
 
-	// Change to project root directory (parent of musing-cli)
-	if err := changeToProjectRoot(); err != nil {
-		fmt.Println()
-		ui.Error("Could not find project root")
-		ui.Info("Run this command from inside a project with .musing.yaml")
-		os.Exit(1)
+	// Change to project root directory
+	projectRoot := config.MustFindProjectRoot()
+	if err := os.Chdir(projectRoot); err != nil {
+		return fmt.Errorf("failed to change to project root: %w", err)
 	}
 
 	// Ensure Docker is running (auto-start if not)
