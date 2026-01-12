@@ -32,9 +32,9 @@ func shouldShowBanner() bool {
 	if len(os.Args) < 2 {
 		return true
 	}
-	// Skip banner for monitor and version commands
+	// Skip banner for monitor, version, and completion commands
 	cmd := os.Args[1]
-	return cmd != "monitor" && cmd != "--version" && cmd != "-v"
+	return cmd != "monitor" && cmd != "--version" && cmd != "-v" && cmd != "completion"
 }
 
 func main() {
