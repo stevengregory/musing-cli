@@ -55,10 +55,11 @@ func main() {
 	}
 
 	app := &cli.App{
-		Name:      "musing",
-		Usage:     "CLI for managing multi-service development stacks",
-		Version:   version,
-		ErrWriter: io.Discard, // Suppress framework error output
+		Name:                 "musing",
+		Usage:                "CLI for managing multi-service development stacks",
+		Version:              version,
+		EnableBashCompletion: true, // Enable shell completion support
+		ErrWriter:            io.Discard, // Suppress framework error output
 		Commands: []*cli.Command{
 			cmd.DevCommand(),
 			cmd.DeployCommand(),
