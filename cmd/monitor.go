@@ -17,6 +17,12 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// Service name constants
+const (
+	ServiceDockerDesktop = "Docker Desktop"
+	ServiceAngular       = "Angular"
+)
+
 // Styles using Lip Gloss
 var (
 	headerStyle = lipgloss.NewStyle().
@@ -261,7 +267,7 @@ func (m monitorModel) View() string {
 func (m monitorModel) getDockerServices() []ServiceHealth {
 	var dockerSvcs []ServiceHealth
 	for _, svc := range m.services {
-		if svc.Name == "Docker Desktop" {
+		if svc.Name == ServiceDockerDesktop {
 			dockerSvcs = append(dockerSvcs, svc)
 		}
 	}
@@ -287,7 +293,7 @@ func (m monitorModel) getSSHTunnelServices() []ServiceHealth {
 func (m monitorModel) getFrontendServices() []ServiceHealth {
 	var frontend []ServiceHealth
 	for _, svc := range m.services {
-		if svc.Name == "Angular" {
+		if svc.Name == ServiceAngular {
 			frontend = append(frontend, svc)
 		}
 	}
@@ -318,7 +324,7 @@ func (m monitorModel) getAPIServices() []ServiceHealth {
 
 	for _, svc := range m.services {
 		// Exclude: database, frontend, docker, and ssh tunnel (check by port)
-		if svc.Name != cfg.Database.Type && svc.Name != "Angular" && svc.Name != "Docker Desktop" && svc.Port != cfg.Database.ProdPort {
+		if svc.Name != cfg.Database.Type && svc.Name != ServiceAngular && svc.Name != ServiceDockerDesktop && svc.Port != cfg.Database.ProdPort {
 			apis = append(apis, svc)
 		}
 	}
@@ -339,7 +345,7 @@ func (m monitorModel) renderServiceList(services []ServiceHealth) string {
 		// Service line: ● Service Name       :8080
 		var line string
 		if svc.Port == 0 {
-			// Docker Desktop doesn't have a port
+			// ServiceDockerDesktop doesn't have a port
 			line = fmt.Sprintf("%s %-25s",
 				statusIcon,
 				svc.Name,
@@ -396,7 +402,7 @@ func checkHealthCmd() tea.Cmd {
 		// Check Docker Desktop
 		dockerRunning := docker.CheckRunning() == nil
 		services = append(services, ServiceHealth{
-			Name:   "Docker Desktop",
+			Name:   ServiceDockerDesktop,
 			Port:   0, // Docker Desktop doesn't have a specific port
 			Status: getStatus(dockerRunning),
 		})
