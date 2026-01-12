@@ -35,7 +35,7 @@ brew install musing
 **Upgrading:**
 
 ```bash
-brew upgrade musing
+brew update && brew upgrade musing
 ```
 
 ## Commands
