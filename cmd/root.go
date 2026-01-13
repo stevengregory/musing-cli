@@ -63,8 +63,9 @@ func init() {
 	// Custom help function to show banner
 	originalHelpFunc := rootCmd.HelpFunc()
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		// Show banner for root command help
-		if cmd.Name() == "musing" {
+		// Show banner for root command help only when using --help flag
+		// (not when using Run function which already shows it)
+		if cmd.Name() == "musing" && cmd.Flags().Changed("help") {
 			printBanner()
 		}
 		originalHelpFunc(cmd, args)
