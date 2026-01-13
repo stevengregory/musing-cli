@@ -16,9 +16,9 @@ builds:
     # Version injection
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
+      - -X github.com/stevengregory/musing-cli/cmd/musing.version={{.Version}}
+      - -X github.com/stevengregory/musing-cli/cmd/musing.commit={{.Commit}}
+      - -X github.com/stevengregory/musing-cli/cmd/musing.date={{.Date}}
 
     # Build targets
     goos:
