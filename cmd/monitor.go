@@ -10,11 +10,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	figure "github.com/common-nighthawk/go-figure"
 	"github.com/evertras/bubble-table/table"
+	"github.com/spf13/cobra"
 	"github.com/stevengregory/musing-cli/internal/config"
 	"github.com/stevengregory/musing-cli/internal/docker"
 	"github.com/stevengregory/musing-cli/internal/health"
 	"github.com/stevengregory/musing-cli/internal/ui"
-	"github.com/urfave/cli/v2"
 )
 
 // Service name constants
@@ -81,14 +81,13 @@ type monitorModel struct {
 	height     int
 }
 
-func MonitorCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "monitor",
-		Usage: "Live monitoring dashboard for development stack",
-		Action: func(c *cli.Context) error {
-			return runMonitor()
-		},
-	}
+var monitorCmd = &cobra.Command{
+	Use:   "monitor",
+	Short: "Live monitoring dashboard for development stack",
+	Long:  `Display a live monitoring dashboard showing the status of Docker, database, API services, and frontend.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runMonitor()
+	},
 }
 
 func runMonitor() error {

@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/cobra"
 	"github.com/stevengregory/musing-cli/internal/config"
 	"github.com/stevengregory/musing-cli/internal/docker"
 	"github.com/stevengregory/musing-cli/internal/health"
 	"github.com/stevengregory/musing-cli/internal/ui"
-	"github.com/urfave/cli/v2"
 )
 
 // Styles using Lip Gloss (matching monitor.go)
@@ -25,38 +25,32 @@ var (
 			MarginBottom(1)
 )
 
-func DevCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "dev",
-		Usage: "Manage development stack",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  "rebuild",
-				Usage: "Force rebuild all Docker images",
-			},
-			&cli.BoolFlag{
-				Name:  "data",
-				Usage: "Deploy MongoDB data after starting services",
-			},
-			&cli.BoolFlag{
-				Name:  "logs",
-				Usage: "Follow logs after starting services",
-			},
-			&cli.BoolFlag{
-				Name:  "stop",
-				Usage: "Stop all services and exit",
-			},
-		},
-		Action: func(c *cli.Context) error {
-			// Handle stop flag
-			if c.Bool("stop") {
-				return stopServices()
-			}
+var devCmd = &cobra.Command{
+	Use:   "dev",
+	Short: "Manage development stack",
+	Long:  `Start, stop, and manage the development stack with Docker Compose.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Handle stop flag
+		stop, _ := cmd.Flags().GetBool("stop")
+		if stop {
+			return stopServices()
+		}
 
-			// Start services
-			return startServices(c.Bool("rebuild"), c.Bool("data"), c.Bool("logs"))
-		},
-	}
+		// Get other flags
+		rebuild, _ := cmd.Flags().GetBool("rebuild")
+		data, _ := cmd.Flags().GetBool("data")
+		logs, _ := cmd.Flags().GetBool("logs")
+
+		// Start services
+		return startServices(rebuild, data, logs)
+	},
+}
+
+func init() {
+	devCmd.Flags().Bool("rebuild", false, "Force rebuild all Docker images")
+	devCmd.Flags().Bool("data", false, "Deploy MongoDB data after starting services")
+	devCmd.Flags().Bool("logs", false, "Follow logs after starting services")
+	devCmd.Flags().Bool("stop", false, "Stop all services and exit")
 }
 
 func stopServices() error {
