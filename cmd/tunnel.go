@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -80,11 +81,25 @@ func tunnelStart() error {
 	}
 
 	sshArgs := []string{
-		"-f",  // Fork to background
-		"-N",  // No remote command
-		"-L", fmt.Sprintf("%d:localhost:%d", prodPort, remotePort),
-		cfg.Production.Server,
+		"-f", // Fork to background
+		"-N", // No remote command
 	}
+
+	// Add SSH key if specified
+	if cfg.Production.SSHKeyPath != "" {
+		// Expand ~ to home directory
+		keyPath := cfg.Production.SSHKeyPath
+		if strings.HasPrefix(keyPath, "~/") {
+			homeDir, err := os.UserHomeDir()
+			if err == nil {
+				keyPath = strings.Replace(keyPath, "~", homeDir, 1)
+			}
+		}
+		sshArgs = append(sshArgs, "-i", keyPath)
+	}
+
+	sshArgs = append(sshArgs, "-L", fmt.Sprintf("%d:localhost:%d", prodPort, remotePort))
+	sshArgs = append(sshArgs, cfg.Production.Server)
 
 	// Start SSH tunnel in background
 	cmd := exec.Command("ssh", sshArgs...)

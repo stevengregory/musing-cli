@@ -35,6 +35,7 @@ type DatabaseConfig struct {
 type ProductionConfig struct {
 	Server       string `yaml:"server"`       // SSH server (e.g., "root@your-server.com")
 	RemoteDBPort int    `yaml:"remoteDBPort"` // Remote database port (typically same as devPort)
+	SSHKeyPath   string `yaml:"sshKeyPath"`   // Optional SSH key path (e.g., "~/.ssh/digital-ocean/id_ed25519")
 }
 
 var currentConfig *ProjectConfig
