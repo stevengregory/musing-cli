@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -81,31 +80,48 @@ func tunnelStart() error {
 	}
 
 	sshArgs := []string{
-		"-N", // No remote command
+		"-f",  // Fork to background
+		"-N",  // No remote command
 		"-L", fmt.Sprintf("%d:localhost:%d", prodPort, remotePort),
 		cfg.Production.Server,
 	}
 
 	// Start SSH tunnel in background
 	cmd := exec.Command("ssh", sshArgs...)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start SSH tunnel: %w", err)
-	}
 
-	// Save PID for later stopping
-	pidFile := getTunnelPIDFile()
-	if err := os.WriteFile(pidFile, []byte(strconv.Itoa(cmd.Process.Pid)), 0644); err != nil {
-		// Non-fatal, just warn
-		fmt.Printf("Warning: Could not save tunnel PID: %v\n", err)
+	// Capture output for error reporting
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+		fmt.Println(warningStyle.Render("✗") + " Failed to start SSH tunnel")
+		fmt.Println()
+
+		// Check if it's likely a password/key issue
+		if strings.Contains(string(output), "Permission denied") ||
+		   strings.Contains(string(output), "password") {
+			fmt.Println("SSH authentication failed. Please ensure:")
+			fmt.Println("  1. SSH key authentication is set up (recommended)")
+			fmt.Println("  2. Or run: ssh-copy-id " + cfg.Production.Server)
+			fmt.Println()
+			return fmt.Errorf("SSH authentication required")
+		}
+
+		if len(output) > 0 {
+			fmt.Println("SSH error:", string(output))
+		}
+		return fmt.Errorf("failed to start SSH tunnel: %w", err)
 	}
 
 	successStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
 	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("99"))
 
+	fmt.Println()
 	fmt.Println(successStyle.Render("✓") + " SSH tunnel started")
 	fmt.Println(infoStyle.Render("  Local port:  ") + strconv.Itoa(prodPort))
 	fmt.Println(infoStyle.Render("  Remote:      ") + cfg.Production.Server)
 	fmt.Println(infoStyle.Render("  Remote port: ") + strconv.Itoa(remotePort))
+	fmt.Println()
+	fmt.Println("  Use 'musing tunnel stop' to close the tunnel")
 
 	return nil
 }
@@ -122,28 +138,16 @@ func tunnelStop() error {
 	// Check if tunnel is running
 	if !health.CheckPort(prodPort).Open {
 		warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+		fmt.Println()
 		fmt.Println(warningStyle.Render("✓") + " SSH tunnel is not running")
 		return nil
 	}
 
-	// Try to kill by PID first
-	pidFile := getTunnelPIDFile()
-	if data, err := os.ReadFile(pidFile); err == nil {
-		pid := strings.TrimSpace(string(data))
-		if err := exec.Command("kill", pid).Run(); err == nil {
-			os.Remove(pidFile)
-			successStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
-			fmt.Println(successStyle.Render("✓") + " SSH tunnel stopped")
-			return nil
-		}
-	}
-
-	// Fallback: kill by port
 	// Find process using the port
 	cmd := exec.Command("lsof", "-ti", fmt.Sprintf(":%d", prodPort))
 	output, err := cmd.Output()
 	if err != nil {
-		return fmt.Errorf("failed to find tunnel process: %w", err)
+		return fmt.Errorf("failed to find tunnel process (is lsof installed?): %w", err)
 	}
 
 	pid := strings.TrimSpace(string(output))
@@ -156,8 +160,8 @@ func tunnelStop() error {
 		return fmt.Errorf("failed to stop tunnel: %w", err)
 	}
 
-	os.Remove(pidFile)
 	successStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
+	fmt.Println()
 	fmt.Println(successStyle.Render("✓") + " SSH tunnel stopped")
 	return nil
 }
@@ -224,6 +228,3 @@ func tunnelStatus() error {
 	return nil
 }
 
-func getTunnelPIDFile() string {
-	return "/tmp/musing-tunnel.pid"
-}
