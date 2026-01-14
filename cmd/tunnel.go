@@ -16,36 +16,22 @@ import (
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel",
 	Short: "Manage SSH tunnel to production database",
-	Long:  `Start, stop, or check status of SSH tunnel for production database access.`,
+	Long:  `Start SSH tunnel for production database access. Use --stop flag to close the tunnel.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		start, _ := cmd.Flags().GetBool("start")
 		stop, _ := cmd.Flags().GetBool("stop")
-		status, _ := cmd.Flags().GetBool("status")
 
-		// Default to status if no flags provided
-		if !start && !stop && !status {
-			return tunnelStatus()
-		}
-
-		if start {
-			return tunnelStart()
-		}
 		if stop {
 			return tunnelStop()
 		}
-		if status {
-			return tunnelStatus()
-		}
 
-		return nil
+		// Default behavior: start tunnel or show status if already running
+		return tunnelStart()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(tunnelCmd)
-	tunnelCmd.Flags().Bool("start", false, "Start SSH tunnel")
 	tunnelCmd.Flags().Bool("stop", false, "Stop SSH tunnel")
-	tunnelCmd.Flags().Bool("status", false, "Check tunnel status")
 }
 
 func tunnelStart() error {
@@ -63,9 +49,7 @@ func tunnelStart() error {
 
 	// Check if tunnel is already running
 	if health.CheckPort(prodPort).Open {
-		successStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
-		fmt.Println(successStyle.Render("✓") + " SSH tunnel already running on port " + strconv.Itoa(prodPort))
-		return nil
+		return tunnelStatus()
 	}
 
 	// Build SSH command
@@ -213,7 +197,7 @@ func tunnelStatus() error {
 	if !portStatus.Open {
 		fmt.Println()
 		dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-		fmt.Println(dimStyle.Render("  Run 'musing tunnel --start' to start the tunnel"))
+		fmt.Println(dimStyle.Render("  Run 'musing tunnel' to start the tunnel"))
 	}
 
 	fmt.Println()
