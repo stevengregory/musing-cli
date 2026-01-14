@@ -20,7 +20,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "musing",
 	Short: "CLI for managing multi-service development stacks",
-	Long:  `A modern CLI tool for managing multi-service development stacks with Docker, MongoDB, and microservices.`,
+	Long:  `A CLI tool for managing multi-service development stacks with Docker, MongoDB, and microservices.`,
 	// Don't show usage on errors
 	SilenceUsage: true,
 	// Don't print errors (we'll handle them ourselves)
