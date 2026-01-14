@@ -30,27 +30,61 @@ var devCmd = &cobra.Command{
 	Short: "Manage development stack",
 	Long:  `Start, stop, and manage the development stack with Docker Compose.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Handle stop flag
-		stop, _ := cmd.Flags().GetBool("stop")
-		if stop {
-			return stopServices()
+		// Default to start when no subcommand
+		return startServices(false, false)
+	},
+}
+
+var devStartCmd = &cobra.Command{
+	Use:   "start",
+	Short: "Start development stack",
+	Long:  `Start all services in the development stack with Docker Compose.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return startServices(false, false)
+	},
+}
+
+var devStopCmd = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop development stack",
+	Long:  `Stop all services in the development stack.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return stopServices()
+	},
+}
+
+var devRebuildCmd = &cobra.Command{
+	Use:   "rebuild",
+	Short: "Rebuild and start development stack",
+	Long:  `Force rebuild all Docker images and start the development stack.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return startServices(true, false)
+	},
+}
+
+var devLogsCmd = &cobra.Command{
+	Use:   "logs",
+	Short: "Follow development stack logs",
+	Long:  `Follow logs from all services in the development stack.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Change to project root
+		projectRoot := config.MustFindProjectRoot()
+		if err := os.Chdir(projectRoot); err != nil {
+			return fmt.Errorf("failed to change to project root: %w", err)
 		}
 
-		// Get other flags
-		rebuild, _ := cmd.Flags().GetBool("rebuild")
-		data, _ := cmd.Flags().GetBool("data")
-		logs, _ := cmd.Flags().GetBool("logs")
-
-		// Start services
-		return startServices(rebuild, data, logs)
+		fmt.Println()
+		ui.Info("Following logs (Ctrl+C to exit)...")
+		fmt.Println()
+		return docker.ComposeLogs(true)
 	},
 }
 
 func init() {
-	devCmd.Flags().Bool("rebuild", false, "Force rebuild all Docker images")
-	devCmd.Flags().Bool("data", false, "Deploy MongoDB data after starting services")
-	devCmd.Flags().Bool("logs", false, "Follow logs after starting services")
-	devCmd.Flags().Bool("stop", false, "Stop all services and exit")
+	devCmd.AddCommand(devStartCmd)
+	devCmd.AddCommand(devStopCmd)
+	devCmd.AddCommand(devRebuildCmd)
+	devCmd.AddCommand(devLogsCmd)
 }
 
 func stopServices() error {
@@ -84,7 +118,7 @@ func changeToProjectRoot() error {
 	return os.Chdir(projectRoot)
 }
 
-func startServices(rebuild, shouldDeployData, followLogs bool) error {
+func startServices(rebuild, followLogs bool) error {
 	fmt.Println(devHeaderStyle.Render("Development Stack"))
 
 	// Change to project root directory
@@ -128,14 +162,6 @@ func startServices(rebuild, shouldDeployData, followLogs bool) error {
 	fmt.Println()
 	ui.Info("Waiting for services to be ready...")
 	time.Sleep(5 * time.Second)
-
-	// Deploy data if requested (calls deploy command internally)
-	if shouldDeployData {
-		fmt.Println()
-		if err := deployData("all", "dev"); err != nil {
-			return err
-		}
-	}
 
 	// Print service URLs with health checks
 	printServiceStatus()
@@ -290,5 +316,6 @@ func printServiceStatus() {
 	fmt.Println()
 	ui.Info("Use 'musing deploy' to populate MongoDB with data")
 	ui.Info("Use 'musing monitor' for live monitoring dashboard")
-	ui.Info("Use 'musing dev --stop' to stop all services")
+	ui.Info("Use 'musing dev stop' to stop all services")
+	ui.Info("Use 'musing dev logs' to follow logs")
 }

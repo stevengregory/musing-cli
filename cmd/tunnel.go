@@ -16,22 +16,45 @@ import (
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel",
 	Short: "Manage SSH tunnel to production database",
-	Long:  `Start SSH tunnel for production database access. Use --stop flag to close the tunnel.`,
+	Long:  `Start, stop, or check status of SSH tunnel for production database access.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		stop, _ := cmd.Flags().GetBool("stop")
-
-		if stop {
-			return tunnelStop()
-		}
-
-		// Default behavior: start tunnel or show status if already running
+		// Default to start
 		return tunnelStart()
+	},
+}
+
+var tunnelStartCmd = &cobra.Command{
+	Use:   "start",
+	Short: "Start SSH tunnel",
+	Long:  `Start SSH tunnel for production database access.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return tunnelStart()
+	},
+}
+
+var tunnelStopCmd = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop SSH tunnel",
+	Long:  `Stop the SSH tunnel to production database.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return tunnelStop()
+	},
+}
+
+var tunnelStatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Check tunnel status",
+	Long:  `Check if the SSH tunnel is currently running.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return tunnelStatus()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(tunnelCmd)
-	tunnelCmd.Flags().Bool("stop", false, "Stop SSH tunnel")
+	tunnelCmd.AddCommand(tunnelStartCmd)
+	tunnelCmd.AddCommand(tunnelStopCmd)
+	tunnelCmd.AddCommand(tunnelStatusCmd)
 }
 
 func tunnelStart() error {
@@ -76,9 +99,6 @@ func tunnelStart() error {
 		// Non-fatal, just warn
 		fmt.Printf("Warning: Could not save tunnel PID: %v\n", err)
 	}
-
-	// Give it a moment to establish
-	// time.Sleep(1 * time.Second)
 
 	successStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
 	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("99"))
@@ -197,7 +217,7 @@ func tunnelStatus() error {
 	if !portStatus.Open {
 		fmt.Println()
 		dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-		fmt.Println(dimStyle.Render("  Run 'musing tunnel' to start the tunnel"))
+		fmt.Println(dimStyle.Render("  Run 'musing tunnel start' to start the tunnel"))
 	}
 
 	fmt.Println()
