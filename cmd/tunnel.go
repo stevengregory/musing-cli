@@ -51,7 +51,6 @@ var tunnelStatusCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(tunnelCmd)
 	tunnelCmd.AddCommand(tunnelStartCmd)
 	tunnelCmd.AddCommand(tunnelStopCmd)
 	tunnelCmd.AddCommand(tunnelStatusCmd)

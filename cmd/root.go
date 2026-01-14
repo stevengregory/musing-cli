@@ -71,13 +71,33 @@ func init() {
 		originalHelpFunc(cmd, args)
 	})
 
-	// Add commands
+	// Set command groups first
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "core",
+		Title: "Core Commands:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "additional",
+		Title: "Additional Commands:",
+	})
+
+	// Add core commands with group IDs
+	devCmd.GroupID = "core"
+	deployCmd.GroupID = "core"
+	monitorCmd.GroupID = "core"
+	tunnelCmd.GroupID = "core"
+
 	rootCmd.AddCommand(devCmd)
 	rootCmd.AddCommand(deployCmd)
 	rootCmd.AddCommand(monitorCmd)
+	rootCmd.AddCommand(tunnelCmd)
 
-	// Cobra has built-in completion command, we just need to configure it
+	// Enable built-in completion command
 	rootCmd.CompletionOptions.DisableDefaultCmd = false
+
+	// Mark built-in commands as additional (done after they're created)
+	rootCmd.SetHelpCommandGroupID("additional")
+	rootCmd.SetCompletionCommandGroupID("additional")
 }
 
 // printBanner displays the ASCII art banner
