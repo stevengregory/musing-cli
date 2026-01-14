@@ -85,11 +85,13 @@ func init() {
 	devCmd.GroupID = "core"
 	deployCmd.GroupID = "core"
 	monitorCmd.GroupID = "core"
+	sshCmd.GroupID = "core"
 	tunnelCmd.GroupID = "core"
 
 	rootCmd.AddCommand(devCmd)
 	rootCmd.AddCommand(deployCmd)
 	rootCmd.AddCommand(monitorCmd)
+	rootCmd.AddCommand(sshCmd)
 	rootCmd.AddCommand(tunnelCmd)
 
 	// Enable built-in completion command

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -74,32 +73,8 @@ func tunnelStart() error {
 		return tunnelStatus()
 	}
 
-	// Build SSH command
-	remotePort := cfg.Production.RemoteDBPort
-	if remotePort == 0 {
-		remotePort = 27017 // Default MongoDB port
-	}
-
-	sshArgs := []string{
-		"-f", // Fork to background
-		"-N", // No remote command
-	}
-
-	// Add SSH key if specified
-	if cfg.Production.SSHKeyPath != "" {
-		// Expand ~ to home directory
-		keyPath := cfg.Production.SSHKeyPath
-		if strings.HasPrefix(keyPath, "~/") {
-			homeDir, err := os.UserHomeDir()
-			if err == nil {
-				keyPath = strings.Replace(keyPath, "~", homeDir, 1)
-			}
-		}
-		sshArgs = append(sshArgs, "-i", keyPath)
-	}
-
-	sshArgs = append(sshArgs, "-L", fmt.Sprintf("%d:localhost:%d", prodPort, remotePort))
-	sshArgs = append(sshArgs, cfg.Production.Server)
+	// Build SSH command with tunnel using shared helper
+	sshArgs := buildSSHArgs(cfg, true) // true = with tunnel
 
 	// Start SSH tunnel in background
 	cmd := exec.Command("ssh", sshArgs...)
@@ -129,6 +104,11 @@ func tunnelStart() error {
 
 	successStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
 	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("99"))
+
+	remotePort := cfg.Production.RemoteDBPort
+	if remotePort == 0 {
+		remotePort = 27017
+	}
 
 	fmt.Println()
 	fmt.Println(successStyle.Render("✓") + " SSH tunnel started")

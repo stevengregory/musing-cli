@@ -1,7 +1,5 @@
 # Musing CLI
 
-![Musing CLI Help](images/help-cmd-0001.png)
-
 A fast command-line tool for managing multi-service development stacks with Docker, MongoDB, and microservices.
 
 ## What Does It Do?
@@ -88,9 +86,24 @@ musing tunnel status  # Check tunnel status
 **Features:**
 
 - Auto-configures from `.musing.yaml` production settings
-- Saves PID for easy stopping
+- Supports custom SSH key paths with ~ expansion
 - Checks if tunnel is already running
+- Automatically backgrounds SSH process
 - Required before production deployments
+
+### ssh
+
+Open an interactive SSH session to your production server.
+
+```bash
+musing ssh
+```
+
+**Features:**
+
+- Auto-configures from `.musing.yaml` production settings
+- Supports custom SSH key paths with ~ expansion
+- Interactive shell session for debugging and administration
 
 ### deploy
 
@@ -152,6 +165,7 @@ database:
 production:
   server: root@your-server.com # SSH server for production access
   remoteDBPort: 27017 # Remote database port (typically 27017 for MongoDB)
+  sshKeyPath: ~/.ssh/your-key # Optional: specific SSH key to use (supports ~ expansion)
 ```
 
 ## Why This Approach?
@@ -197,6 +211,7 @@ musing-cli/
 │   ├── dev.go          # Dev command
 │   ├── deploy.go       # Deploy command
 │   ├── monitor.go      # Monitor command
+│   ├── ssh.go          # SSH command
 │   ├── tunnel.go       # Tunnel command
 │   └── root.go         # Root command setup
 ├── internal/
@@ -217,6 +232,13 @@ musing-cli/
 See [CLAUDE.md](CLAUDE.md) for detailed architecture and development guidelines.
 
 ## Screenshots
+
+<details>
+<summary>Help Command (click to expand)</summary>
+
+![Musing CLI Help](images/help-cmd-0001.png)
+
+</details>
 
 <details>
 <summary>Monitor Command (click to expand)</summary>
