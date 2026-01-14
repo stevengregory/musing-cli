@@ -88,8 +88,9 @@ musing tunnel status  # Check tunnel status
 **Features:**
 
 - Auto-configures from `.musing.yaml` production settings
-- Saves PID for easy stopping
+- Supports custom SSH key paths with ~ expansion
 - Checks if tunnel is already running
+- Automatically backgrounds SSH process
 - Required before production deployments
 
 ### deploy
@@ -152,6 +153,7 @@ database:
 production:
   server: root@your-server.com # SSH server for production access
   remoteDBPort: 27017 # Remote database port (typically 27017 for MongoDB)
+  sshKeyPath: ~/.ssh/your-key # Optional: specific SSH key to use (supports ~ expansion)
 ```
 
 ## Why This Approach?
