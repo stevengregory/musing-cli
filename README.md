@@ -1,6 +1,6 @@
 # Musing CLI
 
-![Musing CLI Help](images/help-cmd-00002.png)
+![Musing CLI Help](images/help-cmd-0001.png)
 
 A fast command-line tool for managing multi-service development stacks with Docker, MongoDB, and microservices.
 
@@ -60,10 +60,11 @@ musing monitor
 Manage the development stack.
 
 ```bash
-musing dev              # Start all services
-musing dev --rebuild    # Force rebuild images
-musing dev --logs       # Start and follow logs
-musing dev --stop       # Stop all services
+musing dev           # Start all services
+musing dev start     # Start all services (explicit)
+musing dev stop      # Stop all services
+musing dev rebuild   # Rebuild images and start
+musing dev logs      # Follow logs
 ```
 
 **Features:**
@@ -72,6 +73,24 @@ musing dev --stop       # Stop all services
 - Validates required repositories exist
 - Health checks for MongoDB and frontend
 - Progress indicators for long operations
+
+### tunnel
+
+Manage SSH tunnel to production database.
+
+```bash
+musing tunnel         # Start tunnel (or show status if running)
+musing tunnel start   # Start tunnel explicitly
+musing tunnel stop    # Stop tunnel
+musing tunnel status  # Check tunnel status
+```
+
+**Features:**
+
+- Auto-configures from `.musing.yaml` production settings
+- Saves PID for easy stopping
+- Checks if tunnel is already running
+- Required before production deployments
 
 ### deploy
 
@@ -177,7 +196,9 @@ musing-cli/
 │   │   └── main.go     # Entry point
 │   ├── dev.go          # Dev command
 │   ├── deploy.go       # Deploy command
-│   └── monitor.go      # Monitor command
+│   ├── monitor.go      # Monitor command
+│   ├── tunnel.go       # Tunnel command
+│   └── root.go         # Root command setup
 ├── internal/
 │   ├── config/         # Service configs & ports
 │   ├── docker/         # Docker operations
