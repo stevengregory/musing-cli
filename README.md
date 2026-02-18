@@ -89,7 +89,7 @@ musing tunnel status  # Check tunnel status
 - Supports custom SSH key paths with ~ expansion
 - Checks if tunnel is already running
 - Automatically backgrounds SSH process
-- Required before production deployments
+- Auto-managed by deploy command for production deployments
 
 ### ssh
 
