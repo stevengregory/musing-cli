@@ -134,6 +134,7 @@ musing deploy news prod    # Deploy news to prod
 Check the installed version.
 
 ```bash
+musing version
 musing --version
 ```
 
