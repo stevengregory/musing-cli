@@ -25,47 +25,57 @@ var (
 )
 
 var deployCmd = &cobra.Command{
-	Use:   "deploy [collection]",
+	Use:   "deploy [collection] [env]",
 	Short: "Deploy MongoDB data collections",
-	Long:  `Deploy MongoDB data collections to development or production environment.`,
-	Args:  cobra.MaximumNArgs(1),
+	Long: `Deploy MongoDB data collections to development or production environment.
+
+Examples:
+  musing deploy              # All collections to dev
+  musing deploy news         # Deploy news to dev
+  musing deploy news prod    # Deploy news to prod`,
+	Args: cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		collection := "all"
+		env := "dev"
 		if len(args) > 0 {
 			collection = args[0]
 		}
+		if len(args) > 1 {
+			env = args[1]
+		}
 
-		env, _ := cmd.Flags().GetString("env")
+		if env != "dev" && env != "prod" {
+			return fmt.Errorf("invalid environment: %s (use 'dev' or 'prod')", env)
+		}
+
 		return deployData(collection, env)
 	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		// Dynamic completion for collection names
-		config.MustFindProjectRoot()
-		cfg := config.GetConfig()
-		if cfg == nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
+		if len(args) == 0 {
+			// First arg: collection names
+			config.MustFindProjectRoot()
+			cfg := config.GetConfig()
+			if cfg == nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
 
-		collections, err := mongo.DiscoverCollections(cfg.Database.DataDir)
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
+			collections, err := mongo.DiscoverCollections(cfg.Database.DataDir)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
 
-		var names []string
-		for name := range collections {
-			names = append(names, name)
+			var names []string
+			for name := range collections {
+				names = append(names, name)
+			}
+			return names, cobra.ShellCompDirectiveNoFileComp
 		}
-		return names, cobra.ShellCompDirectiveNoFileComp
+		if len(args) == 1 {
+			// Second arg: environment
+			return []string{"dev", "prod"}, cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	},
-}
-
-func init() {
-	deployCmd.Flags().StringP("env", "e", "dev", "Environment: dev or prod")
-
-	// Add completion for env flag
-	deployCmd.RegisterFlagCompletionFunc("env", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		return []string{"dev", "prod"}, cobra.ShellCompDirectiveNoFileComp
-	})
 }
 
 func deployData(collection, env string) error {

@@ -111,9 +111,8 @@ Deploy MongoDB collections to dev or production.
 
 ```bash
 musing deploy              # All collections to dev
-musing deploy news         # Specific collection to dev
-musing deploy --env prod   # All to prod (with confirmation)
-musing deploy news -e prod # Specific collection to prod
+musing deploy news         # Deploy news to dev
+musing deploy news prod    # Deploy news to prod
 ```
 
 **How it works:**
@@ -126,7 +125,8 @@ musing deploy news -e prod # Specific collection to prod
 **Production safety:**
 
 - Interactive confirmation required
-- Verifies SSH tunnel connectivity
+- Auto-opens SSH tunnel if not already running
+- Auto-closes tunnel after deployment completes
 - Clear warnings about data overwrite
 
 ### version
