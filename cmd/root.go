@@ -94,6 +94,17 @@ func init() {
 	rootCmd.AddCommand(sshCmd)
 	rootCmd.AddCommand(tunnelCmd)
 
+	// Add version subcommand
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "Print the version number",
+		GroupID: "additional",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(Version)
+		},
+	}
+	rootCmd.AddCommand(versionCmd)
+
 	// Enable built-in completion command
 	rootCmd.CompletionOptions.DisableDefaultCmd = false
 
@@ -127,7 +138,7 @@ func shouldShowBanner(cmd *cobra.Command) bool {
 	current := cmd
 	for current != nil {
 		switch current.Name() {
-		case "monitor", "completion", "bash", "zsh", "fish", "powershell", "help", cobra.ShellCompRequestCmd:
+		case "monitor", "version", "completion", "bash", "zsh", "fish", "powershell", "help", cobra.ShellCompRequestCmd:
 			return false
 		}
 		current = current.Parent()
