@@ -84,6 +84,7 @@ func deployData(collection, env string) error {
 
 	var mongoURI string
 	var port int
+	tunnelWasOpened := false
 
 	if env == "prod" {
 		port = cfg.Database.ProdPort
@@ -98,17 +99,17 @@ func deployData(collection, env string) error {
 			return nil
 		}
 
-		// Check if tunnel is open
+		// Auto-start tunnel if not open
 		status := health.CheckPort(port)
 		if !status.Open {
-			ui.Error(fmt.Sprintf("%s tunnel not open on port %d", cfg.Database.Type, port))
-
-			// Generate helpful SSH tunnel command
-			tunnelCmd := generateTunnelCommand(cfg)
-			ui.Info(fmt.Sprintf("Open SSH tunnel first: %s", tunnelCmd))
-			return fmt.Errorf("production %s not accessible", cfg.Database.Type)
+			ui.Info("Opening SSH tunnel...")
+			if err := tunnelStart(); err != nil {
+				return fmt.Errorf("failed to open SSH tunnel: %w", err)
+			}
+			tunnelWasOpened = true
+		} else {
+			ui.Success("SSH tunnel is open")
 		}
-		ui.Success("SSH tunnel is open")
 	} else {
 		port = cfg.Database.DevPort
 		mongoURI = fmt.Sprintf("mongodb://localhost:%d", port)
@@ -146,25 +147,14 @@ func deployData(collection, env string) error {
 		ui.Success(fmt.Sprintf("Collection '%s' deployed successfully!", collection))
 	}
 
-	return nil
-}
-
-// generateTunnelCommand creates the SSH tunnel command from config
-func generateTunnelCommand(cfg *config.ProjectConfig) string {
-	// Default values if production config not set
-	server := "<your-server>"
-	remotePort := cfg.Database.DevPort
-
-	// Use config values if available
-	if cfg.Production != nil {
-		if cfg.Production.Server != "" {
-			server = cfg.Production.Server
-		}
-		if cfg.Production.RemoteDBPort != 0 {
-			remotePort = cfg.Production.RemoteDBPort
+	// Auto-close tunnel if we opened it
+	if tunnelWasOpened {
+		fmt.Println()
+		ui.Info("Closing SSH tunnel...")
+		if err := tunnelStop(); err != nil {
+			ui.Error(fmt.Sprintf("Failed to close tunnel: %v", err))
 		}
 	}
 
-	return fmt.Sprintf("ssh -f -N -L %d:localhost:%d %s",
-		cfg.Database.ProdPort, remotePort, server)
+	return nil
 }
