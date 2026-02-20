@@ -18,7 +18,8 @@ This is my DevOps command center for [stevengregory.io](https://stevengregory.io
 ## Prerequisites
 
 - Docker Desktop (for `dev` command)
-- MongoDB (local or remote access)
+- `mongoimport` (for `deploy` command; available via MongoDB Database Tools)
+- SSH + `lsof` (for `tunnel`/`ssh` commands)
 - Docker Compose (for service orchestration)
 
 ## Installation
@@ -29,6 +30,8 @@ This is my DevOps command center for [stevengregory.io](https://stevengregory.io
 brew tap stevengregory/musing
 brew install musing
 ```
+
+Tap repository: `stevengregory/homebrew-musing`
 
 **Upgrading:**
 
@@ -214,6 +217,7 @@ musing-cli/
 │   ├── monitor.go      # Monitor command
 │   ├── ssh.go          # SSH command
 │   ├── tunnel.go       # Tunnel command
+│   ├── project.go      # Shared project/config loading helpers
 │   └── root.go         # Root command setup
 ├── internal/
 │   ├── config/         # Service configs & ports
