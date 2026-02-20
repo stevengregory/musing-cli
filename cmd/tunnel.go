@@ -12,6 +12,11 @@ import (
 	"github.com/stevengregory/musing-cli/internal/health"
 )
 
+var (
+	execCommand = exec.Command
+	checkPort   = health.CheckPort
+)
+
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel",
 	Short: "Manage SSH tunnel to production database",
@@ -69,7 +74,7 @@ func tunnelStart() error {
 	}
 
 	// Check if tunnel is already running
-	if health.CheckPort(prodPort).Open {
+	if checkPort(prodPort).Open {
 		return tunnelStatus()
 	}
 
@@ -77,7 +82,7 @@ func tunnelStart() error {
 	sshArgs := buildSSHArgs(cfg, true) // true = with tunnel
 
 	// Start SSH tunnel in background
-	cmd := exec.Command("ssh", sshArgs...)
+	cmd := execCommand("ssh", sshArgs...)
 
 	// Capture output for error reporting
 	output, err := cmd.CombinedOutput()
@@ -131,7 +136,7 @@ func tunnelStop() error {
 	}
 
 	// Check if tunnel is running
-	if !health.CheckPort(prodPort).Open {
+	if !checkPort(prodPort).Open {
 		warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
 		fmt.Println()
 		fmt.Println(warningStyle.Render("✓") + " SSH tunnel is not running")
@@ -139,7 +144,7 @@ func tunnelStop() error {
 	}
 
 	// Find process using the port
-	cmd := exec.Command("lsof", "-ti", fmt.Sprintf(":%d", prodPort))
+	cmd := execCommand("lsof", "-ti", fmt.Sprintf(":%d", prodPort))
 	output, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to find tunnel process (is lsof installed?): %w", err)
@@ -151,7 +156,7 @@ func tunnelStop() error {
 	}
 
 	// Kill the process
-	if err := exec.Command("kill", pid).Run(); err != nil {
+	if err := execCommand("kill", pid).Run(); err != nil {
 		return fmt.Errorf("failed to stop tunnel: %w", err)
 	}
 
@@ -186,7 +191,7 @@ func tunnelStatus() error {
 	fmt.Println(headerStyle.Render("SSH Tunnel Status"))
 	fmt.Println()
 
-	portStatus := health.CheckPort(prodPort)
+	portStatus := checkPort(prodPort)
 	var statusIcon string
 	var statusText string
 
@@ -222,4 +227,3 @@ func tunnelStatus() error {
 
 	return nil
 }
-
