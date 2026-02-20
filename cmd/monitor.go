@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -14,7 +13,6 @@ import (
 	"github.com/stevengregory/musing-cli/internal/config"
 	"github.com/stevengregory/musing-cli/internal/docker"
 	"github.com/stevengregory/musing-cli/internal/health"
-	"github.com/stevengregory/musing-cli/internal/ui"
 )
 
 // Service name constants
@@ -91,15 +89,13 @@ var monitorCmd = &cobra.Command{
 }
 
 func runMonitor() error {
-	// Load project configuration first
-	config.MustFindProjectRoot()
+	if _, _, err := loadProjectConfig(); err != nil {
+		return err
+	}
 
 	// Check Docker is running (don't auto-start for monitor - just inform user)
 	if err := docker.CheckRunning(); err != nil {
-		fmt.Println()
-		ui.Error("Docker is not running")
-		ui.Info("Please start Docker Desktop and try again, or run: musing dev")
-		os.Exit(1)
+		return fmt.Errorf("docker is not running: please start Docker Desktop or run 'musing dev'")
 	}
 
 	// Create Bubble Tea program with alternate screen

@@ -68,9 +68,8 @@ var devLogsCmd = &cobra.Command{
 	Long:  `Follow logs from all services in the development stack.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Change to project root
-		projectRoot := config.MustFindProjectRoot()
-		if err := os.Chdir(projectRoot); err != nil {
-			return fmt.Errorf("failed to change to project root: %w", err)
+		if _, err := changeToProjectRoot(); err != nil {
+			return err
 		}
 
 		fmt.Println()
@@ -91,11 +90,8 @@ func stopServices() error {
 	fmt.Println(devHeaderStyle.Render("Stopping Development Stack"))
 
 	// Change to project root directory
-	if err := changeToProjectRoot(); err != nil {
-		fmt.Println()
-		ui.Error("Could not find project root")
-		ui.Info("Run this command from inside a project with .musing.yaml")
-		os.Exit(1)
+	if _, err := changeToProjectRoot(); err != nil {
+		return err
 	}
 
 	if err := ui.SpinWithBubbles("Stopping all services...", "docker", "compose", "down"); err != nil {
@@ -108,23 +104,12 @@ func stopServices() error {
 	return nil
 }
 
-// changeToProjectRoot changes the working directory to the main project root
-// (the directory containing compose.yaml), intelligently handling git worktrees
-func changeToProjectRoot() error {
-	projectRoot, err := config.FindProjectRoot()
-	if err != nil {
-		return err
-	}
-	return os.Chdir(projectRoot)
-}
-
 func startServices(rebuild, followLogs bool) error {
 	fmt.Println(devHeaderStyle.Render("Development Stack"))
 
 	// Change to project root directory
-	projectRoot := config.MustFindProjectRoot()
-	if err := os.Chdir(projectRoot); err != nil {
-		return fmt.Errorf("failed to change to project root: %w", err)
+	if _, err := changeToProjectRoot(); err != nil {
+		return err
 	}
 
 	// Ensure Docker is running (auto-start if not)
@@ -208,9 +193,9 @@ func checkAPIRepos() error {
 func printServiceStatus() {
 	fmt.Println()
 
-	cfg := config.GetConfig()
-	if cfg == nil {
-		ui.Error("No configuration loaded")
+	_, cfg, err := loadProjectConfig()
+	if err != nil {
+		ui.Error(err.Error())
 		return
 	}
 
@@ -244,32 +229,14 @@ func printServiceStatus() {
 	// Docker section
 	fmt.Println(sectionHeaderStyle.Render("━━━ Docker ━━━"))
 	fmt.Println()
-	if dockerRunning {
-		fmt.Printf("  %s %-25s\n",
-			checkmarkStyle.Render("✓"),
-			"Docker Desktop")
-	} else {
-		fmt.Printf("  %s %-25s\n",
-			errorStyle.Render("✗"),
-			"Docker Desktop")
-	}
+	printStatusLine("Docker Desktop", 0, dockerRunning, checkmarkStyle, errorStyle)
 	fmt.Println()
 
 	// Database section (from database config)
 	fmt.Println(sectionHeaderStyle.Render("━━━ Database ━━━"))
 	fmt.Println()
 	dbStatus := health.CheckPort(cfg.Database.DevPort)
-	if dbStatus.Open {
-		fmt.Printf("  %s %-25s :%-6d\n",
-			checkmarkStyle.Render("✓"),
-			cfg.Database.Type,
-			cfg.Database.DevPort)
-	} else {
-		fmt.Printf("  %s %-25s :%-6d\n",
-			errorStyle.Render("✗"),
-			cfg.Database.Type,
-			cfg.Database.DevPort)
-	}
+	printStatusLine(cfg.Database.Type, cfg.Database.DevPort, dbStatus.Open, checkmarkStyle, errorStyle)
 	fmt.Println()
 
 	// API Services section
@@ -278,17 +245,7 @@ func printServiceStatus() {
 		fmt.Println()
 		for _, api := range apis {
 			status := health.CheckPort(api.Port)
-			if status.Open {
-				fmt.Printf("  %s %-25s :%-6d\n",
-					checkmarkStyle.Render("✓"),
-					api.Name,
-					api.Port)
-			} else {
-				fmt.Printf("  %s %-25s :%-6d\n",
-					errorStyle.Render("✗"),
-					api.Name,
-					api.Port)
-			}
+			printStatusLine(api.Name, api.Port, status.Open, checkmarkStyle, errorStyle)
 		}
 		fmt.Println()
 	}
@@ -299,17 +256,7 @@ func printServiceStatus() {
 		fmt.Println()
 		for _, fe := range frontends {
 			status := health.CheckPort(fe.Port)
-			if status.Open {
-				fmt.Printf("  %s %-25s :%-6d\n",
-					checkmarkStyle.Render("✓"),
-					fe.Name,
-					fe.Port)
-			} else {
-				fmt.Printf("  %s %-25s :%-6d\n",
-					errorStyle.Render("✗"),
-					fe.Name,
-					fe.Port)
-			}
+			printStatusLine(fe.Name, fe.Port, status.Open, checkmarkStyle, errorStyle)
 		}
 	}
 
@@ -318,4 +265,21 @@ func printServiceStatus() {
 	ui.Info("Use 'musing monitor' for live monitoring dashboard")
 	ui.Info("Use 'musing dev stop' to stop all services")
 	ui.Info("Use 'musing dev logs' to follow logs")
+}
+
+func printStatusLine(name string, port int, open bool, okStyle, failStyle lipgloss.Style) {
+	if port == 0 {
+		if open {
+			fmt.Printf("  %s %-25s\n", okStyle.Render("✓"), name)
+			return
+		}
+		fmt.Printf("  %s %-25s\n", failStyle.Render("✗"), name)
+		return
+	}
+
+	if open {
+		fmt.Printf("  %s %-25s :%-6d\n", okStyle.Render("✓"), name, port)
+		return
+	}
+	fmt.Printf("  %s %-25s :%-6d\n", failStyle.Render("✗"), name, port)
 }

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/charmbracelet/lipgloss"
@@ -79,15 +78,9 @@ Examples:
 }
 
 func deployData(collection, env string) error {
-	// Find and load project configuration
-	config.MustFindProjectRoot()
-
-	cfg := config.GetConfig()
-	if cfg == nil {
-		fmt.Println()
-		ui.Error("No configuration loaded")
-		ui.Info("Run 'musing dev' first to initialize the project")
-		os.Exit(1)
+	projectRoot, cfg, err := loadProjectConfig()
+	if err != nil {
+		return err
 	}
 
 	fmt.Println(deployHeaderStyle.Render(fmt.Sprintf("%s Deployment - %s", cfg.Database.Type, env)))
@@ -136,7 +129,6 @@ func deployData(collection, env string) error {
 	}
 
 	// Get data directory from project root
-	projectRoot, _ := config.FindProjectRoot() // Already validated above
 	dataDir := filepath.Join(projectRoot, cfg.Database.DataDir)
 
 	fmt.Println()
