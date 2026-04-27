@@ -29,6 +29,10 @@ jobs:
           release_branches: main
           default_bump: patch
 
+      - name: Fetch new tag locally
+        if: steps.tag.outputs.new_tag
+        run: git fetch --tags --force
+
       - name: Set up Go
         if: steps.tag.outputs.new_tag
         uses: actions/setup-go@v5
