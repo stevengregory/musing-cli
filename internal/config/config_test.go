@@ -140,3 +140,68 @@ services:
 		t.Fatalf("unexpected repos: got %v, want [%s %s]", repos, want1, want2)
 	}
 }
+
+func TestGetAPIRepos_HonorsAPIReposDir(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFiles(t, root, `
+database:
+  type: MongoDB
+  name: mydb
+  devPort: 27018
+  prodPort: 27019
+  dataDir: data
+apiReposDir: shared-api
+services:
+  - name: api-one
+    port: 8080
+    type: api
+  - name: api-two
+    port: 8081
+    type: api
+`)
+	chdirForTest(t, root)
+
+	if _, err := FindProjectRoot(); err != nil {
+		t.Fatalf("FindProjectRoot returned error: %v", err)
+	}
+
+	parent := filepath.Dir(root)
+	want1 := filepath.Join(parent, "shared-api", "api-one")
+	want2 := filepath.Join(parent, "shared-api", "api-two")
+	if err := os.MkdirAll(want1, 0o755); err != nil {
+		t.Fatalf("failed to create expected api-one path: %v", err)
+	}
+	if err := os.MkdirAll(want2, 0o755); err != nil {
+		t.Fatalf("failed to create expected api-two path: %v", err)
+	}
+
+	repos := GetAPIRepos()
+	if len(repos) != 2 {
+		t.Fatalf("expected 2 api repos, got %d", len(repos))
+	}
+	if realPath(t, repos[0]) != realPath(t, want1) || realPath(t, repos[1]) != realPath(t, want2) {
+		t.Fatalf("unexpected repos: got %v, want [%s %s]", repos, want1, want2)
+	}
+}
+
+func TestResolveAPIReposParent(t *testing.T) {
+	projectRoot := "/tmp/foo/steven"
+	parent := filepath.Dir(projectRoot)
+
+	if got := resolveAPIReposParent(projectRoot, ""); got != parent {
+		t.Fatalf("empty: got %q want %q", got, parent)
+	}
+	if got, want := resolveAPIReposParent(projectRoot, "shared"), filepath.Join(parent, "shared"); got != want {
+		t.Fatalf("relative: got %q want %q", got, want)
+	}
+	if got, want := resolveAPIReposParent(projectRoot, "/abs/path"), "/abs/path"; got != want {
+		t.Fatalf("absolute: got %q want %q", got, want)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home dir available")
+	}
+	if got, want := resolveAPIReposParent(projectRoot, "~/shared"), filepath.Join(home, "shared"); got != want {
+		t.Fatalf("tilde: got %q want %q", got, want)
+	}
+}

@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
 // ProjectConfig represents the .musing.yaml configuration
 type ProjectConfig struct {
-	Services   []ServiceConfig   `yaml:"services"`
-	Database   DatabaseConfig    `yaml:"database"`
-	Production *ProductionConfig `yaml:"production,omitempty"` // Optional production config
+	Services    []ServiceConfig   `yaml:"services"`
+	Database    DatabaseConfig    `yaml:"database"`
+	Production  *ProductionConfig `yaml:"production,omitempty"`  // Optional production config
+	APIReposDir string            `yaml:"apiReposDir,omitempty"` // Optional. Directory holding API repos. Relative paths resolve against the project root's parent. Absolute and ~-prefixed paths are honored as-is. Defaults to the project root's parent (sibling layout).
 }
 
 // ServiceConfig represents a service in the stack
@@ -131,7 +133,7 @@ func GetAPIRepos() []string {
 		return []string{}
 	}
 
-	parentDir := filepath.Dir(projectRoot)
+	parentDir := resolveAPIReposParent(projectRoot, currentConfig.APIReposDir)
 	var repos []string
 
 	for _, svc := range currentConfig.Services {
@@ -142,4 +144,23 @@ func GetAPIRepos() []string {
 	}
 
 	return repos
+}
+
+// resolveAPIReposParent picks the directory that contains API repos.
+// Empty input falls back to the project root's parent (sibling layout).
+// "~/" is expanded to the user's home directory; absolute paths are honored
+// as-is; otherwise the value is treated as relative to the project root's parent.
+func resolveAPIReposParent(projectRoot, apiReposDir string) string {
+	if apiReposDir == "" {
+		return filepath.Dir(projectRoot)
+	}
+	if strings.HasPrefix(apiReposDir, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, apiReposDir[2:])
+		}
+	}
+	if filepath.IsAbs(apiReposDir) {
+		return apiReposDir
+	}
+	return filepath.Join(filepath.Dir(projectRoot), apiReposDir)
 }
