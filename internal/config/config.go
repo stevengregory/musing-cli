@@ -26,11 +26,12 @@ type ServiceConfig struct {
 
 // DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	Type     string `yaml:"type"` // mongodb, postgres, etc
-	Name     string `yaml:"name"` // Database name
-	DevPort  int    `yaml:"devPort"`
-	ProdPort int    `yaml:"prodPort"`
-	DataDir  string `yaml:"dataDir"` // Relative path to data directory
+	Type     string            `yaml:"type"` // mongodb, postgres, etc
+	Name     string            `yaml:"name"` // Database name
+	DevPort  int               `yaml:"devPort"`
+	ProdPort int               `yaml:"prodPort"`
+	DataDir  string            `yaml:"dataDir"`           // Relative path to data directory
+	Aliases  map[string]string `yaml:"aliases,omitempty"` // Optional CLI alias → collection key (filename without .json)
 }
 
 // ProductionConfig represents optional production deployment settings

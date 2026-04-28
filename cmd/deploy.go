@@ -67,6 +67,9 @@ Examples:
 			for name := range collections {
 				names = append(names, name)
 			}
+			for alias := range cfg.Database.Aliases {
+				names = append(names, alias)
+			}
 			return names, cobra.ShellCompDirectiveNoFileComp
 		}
 		if len(args) == 1 {
@@ -81,6 +84,12 @@ func deployData(collection, env string) error {
 	projectRoot, cfg, err := loadProjectConfig()
 	if err != nil {
 		return err
+	}
+
+	if collection != "all" {
+		if target, ok := cfg.Database.Aliases[collection]; ok {
+			collection = target
+		}
 	}
 
 	fmt.Println(deployHeaderStyle.Render(fmt.Sprintf("%s Deployment - %s", cfg.Database.Type, env)))
