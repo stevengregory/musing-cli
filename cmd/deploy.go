@@ -12,6 +12,28 @@ import (
 	"github.com/stevengregory/musing-cli/internal/ui"
 )
 
+// serviceAliases builds a CLI-short-name → collection-key map from API services.
+// Short name = service.Alias (explicit). Target = service.Collection if set,
+// else the alias itself (filename equals alias). Services without an alias are
+// not addressable by short name.
+func serviceAliases(cfg *config.ProjectConfig) map[string]string {
+	aliases := make(map[string]string)
+	if cfg == nil {
+		return aliases
+	}
+	for _, svc := range cfg.Services {
+		if svc.Type != "api" || svc.Alias == "" {
+			continue
+		}
+		target := svc.Collection
+		if target == "" {
+			target = svc.Alias
+		}
+		aliases[svc.Alias] = target
+	}
+	return aliases
+}
+
 // Styles using Lip Gloss (matching monitor.go)
 var (
 	deployHeaderStyle = lipgloss.NewStyle().
@@ -67,7 +89,7 @@ Examples:
 			for name := range collections {
 				names = append(names, name)
 			}
-			for alias := range cfg.Database.Aliases {
+			for alias := range serviceAliases(cfg) {
 				names = append(names, alias)
 			}
 			return names, cobra.ShellCompDirectiveNoFileComp
@@ -87,7 +109,7 @@ func deployData(collection, env string) error {
 	}
 
 	if collection != "all" {
-		if target, ok := cfg.Database.Aliases[collection]; ok {
+		if target, ok := serviceAliases(cfg)[collection]; ok {
 			collection = target
 		}
 	}

@@ -19,19 +19,20 @@ type ProjectConfig struct {
 
 // ServiceConfig represents a service in the stack
 type ServiceConfig struct {
-	Name string `yaml:"name"`
-	Port int    `yaml:"port"`
-	Type string `yaml:"type"` // frontend, api, database
+	Name       string `yaml:"name"`
+	Port       int    `yaml:"port"`
+	Type       string `yaml:"type"`                 // frontend, api, database
+	Alias      string `yaml:"alias,omitempty"`      // Optional: short CLI name for `musing deploy`. Falls back to data file key when omitted.
+	Collection string `yaml:"collection,omitempty"` // Optional: data file key (filename without .json). When omitted, defaults to Alias.
 }
 
 // DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	Type     string            `yaml:"type"` // mongodb, postgres, etc
-	Name     string            `yaml:"name"` // Database name
-	DevPort  int               `yaml:"devPort"`
-	ProdPort int               `yaml:"prodPort"`
-	DataDir  string            `yaml:"dataDir"`           // Relative path to data directory
-	Aliases  map[string]string `yaml:"aliases,omitempty"` // Optional CLI alias → collection key (filename without .json)
+	Type     string `yaml:"type"` // mongodb, postgres, etc
+	Name     string `yaml:"name"` // Database name
+	DevPort  int    `yaml:"devPort"`
+	ProdPort int    `yaml:"prodPort"`
+	DataDir  string `yaml:"dataDir"` // Relative path to data directory
 }
 
 // ProductionConfig represents optional production deployment settings
