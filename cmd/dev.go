@@ -17,18 +17,24 @@ import (
 // Styles using Lip Gloss (matching monitor.go)
 var (
 	devHeaderStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FF00FF")). // Magenta/purple
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#FF00FF")).
-			Padding(0, 2).
-			MarginBottom(1)
+		Bold(true).
+		Foreground(lipgloss.Color("#FF00FF")). // Magenta/purple
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#FF00FF")).
+		Padding(0, 2).
+		MarginBottom(1)
 )
 
 var devCmd = &cobra.Command{
 	Use:   "dev",
 	Short: "Manage development stack",
-	Long:  `Start, stop, and manage the development stack with Docker Compose.`,
+	Long: `Start, stop, rebuild, and inspect logs for the configured Docker Compose
+development stack. Running without a subcommand starts the stack.`,
+	Example: `  musing dev
+  musing dev start
+  musing dev rebuild
+  musing dev logs
+  musing dev stop`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Default to start when no subcommand
 		return startServices(false, false)
@@ -38,7 +44,7 @@ var devCmd = &cobra.Command{
 var devStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start development stack",
-	Long:  `Start all services in the development stack with Docker Compose.`,
+	Long:  `Start all services in the configured Docker Compose development stack.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return startServices(false, false)
 	},
@@ -47,7 +53,7 @@ var devStartCmd = &cobra.Command{
 var devStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop development stack",
-	Long:  `Stop all services in the development stack.`,
+	Long:  `Stop all services in the configured Docker Compose development stack.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return stopServices()
 	},
@@ -56,7 +62,7 @@ var devStopCmd = &cobra.Command{
 var devRebuildCmd = &cobra.Command{
 	Use:   "rebuild",
 	Short: "Rebuild and start development stack",
-	Long:  `Force rebuild all Docker images and start the development stack.`,
+	Long:  `Stop containers, rebuild Docker images without cache, and start the development stack.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return startServices(true, false)
 	},
@@ -65,7 +71,7 @@ var devRebuildCmd = &cobra.Command{
 var devLogsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "Follow development stack logs",
-	Long:  `Follow logs from all services in the development stack.`,
+	Long:  `Follow Docker Compose logs from all services in the development stack.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Change to project root
 		if _, err := changeToProjectRoot(); err != nil {

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	figure "github.com/common-nighthawk/go-figure"
 	"github.com/charmbracelet/lipgloss"
+	figure "github.com/common-nighthawk/go-figure"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,8 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "musing",
 	Short: "CLI for managing multi-service development stacks",
-	Long:  `A CLI tool for managing multi-service development stacks with Docker, MongoDB, and microservices.`,
+	Long: `A fast CLI for managing multi-service development stacks with Docker,
+MongoDB, SSH tunnels, and port-based service health checks.`,
 	// Don't show usage on errors
 	SilenceUsage: true,
 	// Don't print errors (we'll handle them ourselves)
@@ -96,8 +97,8 @@ func init() {
 
 	// Add version subcommand
 	versionCmd := &cobra.Command{
-		Use:   "version",
-		Short: "Print the version number",
+		Use:     "version",
+		Short:   "Print the version number",
 		GroupID: "additional",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println(Version)

@@ -13,7 +13,9 @@ import (
 var sshCmd = &cobra.Command{
 	Use:   "ssh",
 	Short: "Open interactive SSH session to production server",
-	Long:  `Open an interactive SSH session to the production server configured in .musing.yaml.`,
+	Long: `Open an interactive SSH session to the production server configured in
+.musing.yaml. If production.sshKeyPath is set, the key path is expanded and
+passed to ssh with -i.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		config.MustFindProjectRoot()
 		cfg := config.GetConfig()

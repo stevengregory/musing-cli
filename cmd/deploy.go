@@ -37,23 +37,29 @@ func serviceAliases(cfg *config.ProjectConfig) map[string]string {
 // Styles using Lip Gloss (matching monitor.go)
 var (
 	deployHeaderStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FF00FF")). // Magenta/purple
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#FF00FF")).
-			Padding(0, 2).
-			MarginBottom(1)
+		Bold(true).
+		Foreground(lipgloss.Color("#FF00FF")). // Magenta/purple
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#FF00FF")).
+		Padding(0, 2).
+		MarginBottom(1)
 )
 
 var deployCmd = &cobra.Command{
-	Use:   "deploy [collection] [env]",
+	Use:   "deploy [collection|alias] [dev|prod]",
 	Short: "Deploy MongoDB data collections",
-	Long: `Deploy MongoDB data collections to development or production environment.
+	Long: `Deploy MongoDB JSON data collections to the configured development or
+production database.
 
-Examples:
-  musing deploy              # All collections to dev
-  musing deploy news         # Deploy news to dev
-  musing deploy news prod    # Deploy news to prod`,
+Collection names come from JSON files in database.dataDir. API services can also
+define short deploy aliases in .musing.yaml with alias and collection fields.
+
+Defaults:
+  collection: all
+  env:        dev`,
+	Example: `  musing deploy              # All collections to dev
+  musing deploy news         # Collection or alias to dev
+  musing deploy news prod    # Collection or alias to prod`,
 	Args: cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		collection := "all"

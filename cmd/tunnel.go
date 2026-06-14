@@ -20,7 +20,13 @@ var (
 var tunnelCmd = &cobra.Command{
 	Use:   "tunnel",
 	Short: "Manage SSH tunnel to production database",
-	Long:  `Start, stop, or check status of SSH tunnel for production database access.`,
+	Long: `Start, stop, or check the SSH tunnel for production database access.
+Tunnel settings come from production fields in .musing.yaml. Running without a
+subcommand starts the tunnel or reports status when it is already running.`,
+	Example: `  musing tunnel
+  musing tunnel start
+  musing tunnel status
+  musing tunnel stop`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Default to start
 		return tunnelStart()
@@ -30,7 +36,7 @@ var tunnelCmd = &cobra.Command{
 var tunnelStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start SSH tunnel",
-	Long:  `Start SSH tunnel for production database access.`,
+	Long:  `Start the configured SSH tunnel for production database access.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return tunnelStart()
 	},
@@ -39,7 +45,7 @@ var tunnelStartCmd = &cobra.Command{
 var tunnelStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop SSH tunnel",
-	Long:  `Stop the SSH tunnel to production database.`,
+	Long:  `Stop the SSH tunnel bound to the configured production database port.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return tunnelStop()
 	},
@@ -48,7 +54,7 @@ var tunnelStopCmd = &cobra.Command{
 var tunnelStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Check tunnel status",
-	Long:  `Check if the SSH tunnel is currently running.`,
+	Long:  `Check whether the configured production database tunnel port is open.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return tunnelStatus()
 	},
@@ -93,7 +99,7 @@ func tunnelStart() error {
 
 		// Check if it's likely a password/key issue
 		if strings.Contains(string(output), "Permission denied") ||
-		   strings.Contains(string(output), "password") {
+			strings.Contains(string(output), "password") {
 			fmt.Println("SSH authentication failed. Please ensure:")
 			fmt.Println("  1. SSH key authentication is set up (recommended)")
 			fmt.Println("  2. Or run: ssh-copy-id " + cfg.Production.Server)

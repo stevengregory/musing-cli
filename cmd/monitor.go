@@ -83,7 +83,9 @@ type monitorModel struct {
 var monitorCmd = &cobra.Command{
 	Use:   "monitor",
 	Short: "Live monitoring dashboard for development stack",
-	Long:  `Display a live monitoring dashboard showing the status of Docker, database, API services, and frontend.`,
+	Long: `Display a live monitoring dashboard for the configured stack, including
+Docker, the development database, API services, frontend services, and the
+production SSH tunnel port.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runMonitor()
 	},
