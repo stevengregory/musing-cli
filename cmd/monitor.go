@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	lipglossv2 "charm.land/lipgloss/v2"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -130,11 +131,11 @@ func initialMonitorModel() monitorModel {
 		WithRows([]table.Row{}).
 		Focused(false).
 		WithPageSize(20).
-		WithBaseStyle(lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFFFF")).
-			BorderForeground(lipgloss.Color("#FF00FF"))).
-		HeaderStyle(lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF00FF")).
+		WithBaseStyle(lipglossv2.NewStyle().
+			Foreground(lipglossv2.Color("#FFFFFF")).
+			BorderForeground(lipglossv2.Color("#FF00FF"))).
+		HeaderStyle(lipglossv2.NewStyle().
+			Foreground(lipglossv2.Color("#FF00FF")).
 			Bold(true)).
 		WithStaticFooter("")
 
