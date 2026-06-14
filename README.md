@@ -17,10 +17,10 @@ This is my DevOps command center for [stevengregory.io](https://stevengregory.io
 
 ## Prerequisites
 
-- Docker Desktop (for `dev` command)
-- `mongoimport` (for `deploy` command; available via MongoDB Database Tools)
-- SSH + `lsof` (for `tunnel`/`ssh` commands)
-- Docker Compose (for service orchestration)
+- Docker Desktop and Docker Compose (for `dev`, `monitor`, and logs)
+- MongoDB Database Tools, including `mongoimport` (for `deploy`)
+- SSH + `lsof` (for `tunnel`, `ssh`, and production deploys)
+- `gum` (for styled non-TUI command output)
 
 ## Installation
 
@@ -72,7 +72,7 @@ musing dev logs      # Follow logs
 
 - Auto-detects and starts Docker Desktop if needed
 - Validates required repositories exist
-- Health checks for MongoDB and frontend
+- Health checks for database, API services, and frontend
 - Progress indicators for long operations
 
 ### tunnel
@@ -122,8 +122,10 @@ musing deploy news prod    # Deploy news to prod
 
 - Auto-discovers all `.json` files in your data directory
 - Collection names derived from filenames (e.g., `news.json` → `news` collection)
+- Hyphenated filenames become underscored collection names (e.g., `feature-flags.json` → `feature_flags`)
+- API services can define short deploy aliases in `.musing.yaml`
 - Automatically detects JSON arrays vs. objects
-- No manual configuration needed
+- No hardcoded collection list required
 
 **Production safety:**
 
@@ -143,9 +145,14 @@ musing --version
 
 ## Configuration
 
-Create a `.musing.yaml` file in your project root to define your stack:
+Create a `.musing.yaml` file alongside `compose.yaml` in your project root to define your stack. Commands search upward from the current directory until they find that project root.
 
 ```yaml
+# Optional: directory containing API repos.
+# Empty defaults to the project root's parent directory.
+# Relative values resolve from the project root's parent; absolute and ~/ paths are supported.
+apiReposDir: services
+
 services:
   # Frontend
   - name: Angular
@@ -153,9 +160,11 @@ services:
     type: frontend
 
   # API Services
-  - name: my-api
+  - name: my-news-api
     port: 8080
     type: api
+    alias: news # Optional: short key for `musing deploy news`
+    collection: news-items # Optional: data file key; defaults to alias when omitted
 
 # Database configuration
 database:
@@ -178,7 +187,7 @@ production:
 
 - Works with any frontend framework (Angular, React, Vue, etc.)
 - Backend-agnostic (Go, Node, Python microservices)
-- Service configurations in `internal/config/config.go`
+- `.musing.yaml` driven service definitions
 - Docker Compose integration
 - Port-based health checking (framework-independent)
 - MongoDB deployment patterns
@@ -189,7 +198,7 @@ production:
 - Fast startup (1-3ms)
 - Type-safe Go prevents runtime errors
 - Professional terminal UI with Bubble Tea
-- Single binary with zero dependencies
+- Single Go binary; external tools are only needed for the stack operations that use them
 
 ## Development
 
@@ -198,11 +207,15 @@ production:
 go run ./cmd/musing monitor
 go run ./cmd/musing dev
 
-# Build for development (with version detection)
+# Test and build
+go test ./...
 make build
 
 # Manage dependencies
 go mod tidy
+
+# Final whitespace check before committing
+git diff --check
 ```
 
 ## Architecture
@@ -230,11 +243,13 @@ musing-cli/
 **Tech Stack**:
 
 - Go (fast, type-safe, single binary)
-- Bubble Tea (interactive TUI)
+- Cobra (command parsing)
+- Bubble Tea, Bubbles, and bubble-table (interactive TUI)
 - Lip Gloss (terminal styling)
 - Huh (confirmation prompts)
+- GoReleaser (release packaging)
 
-See [CLAUDE.md](CLAUDE.md) for detailed architecture and development guidelines.
+See [AGENTS.md](AGENTS.md) for Codex guidance and [CLAUDE.md](CLAUDE.md) for additional project background.
 
 ## Screenshots
 
