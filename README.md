@@ -1,6 +1,6 @@
 # Musing CLI
 
-A fast command-line tool for managing multi-service development stacks with Docker, MongoDB, and microservices.
+A fast command-line tool for managing multi-service development stacks with Docker, MongoDB, SSH tunnels, and port-based service health checks.
 
 ## What Does It Do?
 
@@ -114,8 +114,8 @@ Deploy MongoDB collections to dev or production.
 
 ```bash
 musing deploy              # All collections to dev
-musing deploy news         # Deploy news to dev
-musing deploy news prod    # Deploy news to prod
+musing deploy news         # Deploy collection or alias to dev
+musing deploy news prod    # Deploy collection or alias to prod
 ```
 
 **How it works:**
