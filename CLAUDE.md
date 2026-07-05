@@ -113,7 +113,7 @@ Cwd-sensitive commands use two shared helpers:
 `config.FindProjectRoot()` searches **upward** from the cwd for a directory containing `.musing.yaml`, and additionally requires a sibling `compose.yaml` to confirm the root. `config.MustFindProjectRoot()` is a variant that prints a friendly error and `os.Exit(1)`s — used by commands that only need config loaded (e.g. `ssh`, `tunnel`, deploy completion).
 
 #### 4. UI styling
-- **Primary accent**: magenta/purple. In the `cmd/` TUI styles this is the hex `lipgloss.Color("#FF00FF")`; the banner uses `lipgloss.Color("99")`. The `internal/ui/gum.go` helpers use ANSI-256 codes (212 magenta, 196 red, 214 amber, 205/246 for spinners).
+- **Primary accent**: magenta/purple. In the `cmd/` TUI styles this is the hex `lipgloss.Color("#FF00FF")`; the banner uses `lipgloss.Color("99")`. The `internal/ui` helpers use ANSI-256 codes — `gum.go` uses 212 magenta, 196 red, 214 amber; `spinner.go` uses 205 (spinner) and 246 (message).
 - **Status colors**: green `#00FF00` (running), red `#FF0000` (down).
 - **No emoji**: output uses Unicode status glyphs only (`✓ ✗ ● ━ • ℹ ⚠`), never emoji.
 - **Consistent formatting**: rounded borders, styled section headers, color-coded status indicators.
