@@ -80,13 +80,13 @@ Defaults:
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			// First arg: collection names
-			config.MustFindProjectRoot()
-			cfg := config.GetConfig()
-			if cfg == nil {
+			projectRoot, cfg, err := loadProjectConfig()
+			if err != nil {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
 
-			collections, err := mongo.DiscoverCollections(cfg.Database.DataDir)
+			dataDir := filepath.Join(projectRoot, cfg.Database.DataDir)
+			collections, err := mongo.DiscoverCollections(dataDir)
 			if err != nil {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}

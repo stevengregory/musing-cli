@@ -16,10 +16,15 @@ import (
 	"github.com/stevengregory/musing-cli/internal/health"
 )
 
-// Service name constants
+// Service constants
 const (
 	ServiceDockerDesktop = "Docker Desktop"
-	ServiceAngular       = "Angular"
+
+	serviceTypeAPI       = "api"
+	serviceTypeDatabase  = "database"
+	serviceTypeDocker    = "docker"
+	serviceTypeFrontend  = "frontend"
+	serviceTypeSSHTunnel = "ssh_tunnel"
 )
 
 // Styles using Lip Gloss
@@ -67,6 +72,7 @@ type ServiceHealth struct {
 	Name   string
 	Port   int
 	Status string
+	Type   string
 }
 
 // Model holds the dashboard state
@@ -265,7 +271,7 @@ func (m monitorModel) View() string {
 func (m monitorModel) getDockerServices() []ServiceHealth {
 	var dockerSvcs []ServiceHealth
 	for _, svc := range m.services {
-		if svc.Name == ServiceDockerDesktop {
+		if svc.Type == serviceTypeDocker {
 			dockerSvcs = append(dockerSvcs, svc)
 		}
 	}
@@ -274,14 +280,9 @@ func (m monitorModel) getDockerServices() []ServiceHealth {
 
 func (m monitorModel) getSSHTunnelServices() []ServiceHealth {
 	var sshSvcs []ServiceHealth
-	cfg := config.GetConfig()
-	if cfg == nil {
-		return sshSvcs
-	}
 
 	for _, svc := range m.services {
-		// Match production tunnel port
-		if svc.Port == cfg.Database.ProdPort {
+		if svc.Type == serviceTypeSSHTunnel {
 			sshSvcs = append(sshSvcs, svc)
 		}
 	}
@@ -291,7 +292,7 @@ func (m monitorModel) getSSHTunnelServices() []ServiceHealth {
 func (m monitorModel) getFrontendServices() []ServiceHealth {
 	var frontend []ServiceHealth
 	for _, svc := range m.services {
-		if svc.Name == ServiceAngular {
+		if svc.Type == serviceTypeFrontend {
 			frontend = append(frontend, svc)
 		}
 	}
@@ -300,13 +301,9 @@ func (m monitorModel) getFrontendServices() []ServiceHealth {
 
 func (m monitorModel) getDatabaseServices() []ServiceHealth {
 	var database []ServiceHealth
-	cfg := config.GetConfig()
-	if cfg == nil {
-		return database
-	}
 
 	for _, svc := range m.services {
-		if svc.Name == cfg.Database.Type {
+		if svc.Type == serviceTypeDatabase {
 			database = append(database, svc)
 		}
 	}
@@ -315,14 +312,9 @@ func (m monitorModel) getDatabaseServices() []ServiceHealth {
 
 func (m monitorModel) getAPIServices() []ServiceHealth {
 	var apis []ServiceHealth
-	cfg := config.GetConfig()
-	if cfg == nil {
-		return apis
-	}
 
 	for _, svc := range m.services {
-		// Exclude: database, frontend, docker, and ssh tunnel (check by port)
-		if svc.Name != cfg.Database.Type && svc.Name != ServiceAngular && svc.Name != ServiceDockerDesktop && svc.Port != cfg.Database.ProdPort {
+		if svc.Type == serviceTypeAPI {
 			apis = append(apis, svc)
 		}
 	}
@@ -403,6 +395,7 @@ func checkHealthCmd() tea.Cmd {
 			Name:   ServiceDockerDesktop,
 			Port:   0, // Docker Desktop doesn't have a specific port
 			Status: getStatus(dockerRunning),
+			Type:   serviceTypeDocker,
 		})
 
 		// Check database (dev environment)
@@ -411,6 +404,7 @@ func checkHealthCmd() tea.Cmd {
 			Name:   cfg.Database.Type,
 			Port:   cfg.Database.DevPort,
 			Status: getStatus(dbStatus.Open),
+			Type:   serviceTypeDatabase,
 		})
 
 		// Check Production SSH Tunnel (to production database)
@@ -425,6 +419,7 @@ func checkHealthCmd() tea.Cmd {
 			Name:   tunnelName,
 			Port:   cfg.Database.ProdPort,
 			Status: getStatus(prodTunnelStatus.Open),
+			Type:   serviceTypeSSHTunnel,
 		})
 
 		// Check all configured services
@@ -434,6 +429,7 @@ func checkHealthCmd() tea.Cmd {
 				Name:   svc.Name,
 				Port:   svc.Port,
 				Status: getStatus(status.Open),
+				Type:   svc.Type,
 			})
 		}
 
