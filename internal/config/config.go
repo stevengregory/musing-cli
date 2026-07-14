@@ -23,7 +23,7 @@ type ServiceConfig struct {
 	Port       int    `yaml:"port"`
 	Type       string `yaml:"type"`                 // frontend, api, database
 	Alias      string `yaml:"alias,omitempty"`      // Optional: short CLI name for `musing deploy`. Falls back to data file key when omitted.
-	Collection string `yaml:"collection,omitempty"` // Optional: data file key (filename without .json). When omitted, defaults to Alias.
+	Collection string `yaml:"collection,omitempty"` // Optional: data file or directory key. When omitted, defaults to Alias.
 }
 
 // DatabaseConfig represents database configuration

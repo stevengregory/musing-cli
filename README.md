@@ -120,12 +120,26 @@ musing deploy news prod    # Deploy collection or alias to prod
 
 **How it works:**
 
-- Auto-discovers all `.json` files in your data directory
-- Collection names derived from filenames (e.g., `news.json` → `news` collection)
-- Hyphenated filenames become underscored collection names (e.g., `feature-flags.json` → `feature_flags`)
+- Auto-discovers top-level `.json` files and immediate subdirectories containing `.json` files
+- Collection names derive from filenames or directory names (e.g., `news.json` → `news`)
+- Hyphenated source keys become underscored collection names (e.g., `blog-posts/` → `blog_posts`)
 - API services can define short deploy aliases in `.musing.yaml`
-- Automatically detects JSON arrays vs. objects
+- Automatically detects JSON arrays vs. objects in top-level files
+- Treats every JSON file in a directory collection as one document and streams the documents to `mongoimport` in filename order
+- Rejects ambiguous sources such as both `blog-posts.json` and `blog-posts/`, or source keys that resolve to the same MongoDB collection
 - No hardcoded collection list required
+
+Directory collections are useful when each document deserves isolated source history:
+
+```text
+data/
+├── news.json
+└── blog-posts/
+    ├── first-post.json
+    └── second-post.json
+```
+
+Each file under `blog-posts/` must contain exactly one JSON object. Like file-backed collections, the directory is a complete snapshot: deployment uses `--drop`, so removing a source file removes that document on the next deployment.
 
 **Production safety:**
 
@@ -164,7 +178,7 @@ services:
     port: 8080
     type: api
     alias: news # Optional: short key for `musing deploy news`
-    collection: news-items # Optional: data file key; defaults to alias when omitted
+    collection: news-items # Optional: data file or directory key; defaults to alias when omitted
 
 # Database configuration
 database:

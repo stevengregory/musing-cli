@@ -51,8 +51,10 @@ var deployCmd = &cobra.Command{
 	Long: `Deploy MongoDB JSON data collections to the configured development or
 production database.
 
-Collection names come from JSON files in database.dataDir. API services can also
-define short deploy aliases in .musing.yaml with alias and collection fields.
+Collection names come from JSON files or immediate subdirectories in
+database.dataDir. A directory collection contains one JSON object per file.
+API services can also define short deploy aliases in .musing.yaml with alias
+and collection fields.
 
 Defaults:
   collection: all
