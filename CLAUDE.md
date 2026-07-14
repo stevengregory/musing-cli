@@ -140,7 +140,9 @@ Manages the Docker Compose development stack. The bare `dev` command starts the 
 ### `musing deploy`
 **Location**: `cmd/deploy.go`
 
-Deploys MongoDB JSON data collections to development or production.
+Deploys MongoDB JSON data collections to development or production. Sources can
+be top-level JSON files or immediate subdirectories containing one JSON object
+per file.
 
 **Usage** (positional `env`, defaults `collection=all`, `env=dev`):
 ```bash
@@ -232,11 +234,13 @@ Port and HTTP health checking with latency measurement.
 ### mongo/deploy.go
 MongoDB deployment with auto-discovery.
 
-- `Collection{ Name, File string; IsArray bool }`.
-- `DiscoverCollections(dataDir) (map[string]Collection, error)` — scans `dataDir` for `.json` files. Map key = filename without `.json`; collection `Name` = key with `-` → `_`. Auto-detects array vs object by inspecting the first non-whitespace byte.
-- `DeployCollection(uri, db, collectionKey, dataDir)` — runs `mongoimport --uri … --db … --collection … --file … --drop` (adds `--jsonArray` for arrays).
-- `DeployAll(uri, db, dataDir)` — deploys every discovered collection.
-- `getCollectionKeys(...)` — keys list for error messages.
+- `Collection{ Name, File string; Files []string; IsArray bool }`.
+- `DiscoverCollections(dataDir) (map[string]Collection, error)` — scans `dataDir` for top-level `.json` files and immediate directory collections. Map key = filename without `.json` or directory name; collection `Name` = key with `-` → `_`.
+- Top-level files retain object/array auto-detection. Every `.json` file inside a directory collection must be one object; files are ordered by name and compacted into newline-delimited JSON.
+- A file and directory with the same source key are rejected as ambiguous, as are different source keys that resolve to the same MongoDB collection. Directories without JSON files are ignored.
+- `DeployCollection(uri, db, collectionKey, dataDir)` — file sources use `--file` and add `--jsonArray` when needed; directory sources stream newline-delimited documents through stdin. Every import uses `--drop`.
+- `DeployAll(uri, db, dataDir)` — deploys every discovered collection in sorted key order.
+- `getCollectionKeys(...)` — sorted keys list for deployment and error messages.
 
 ### ui/
 Terminal output, prompts, and spinners.
@@ -264,7 +268,7 @@ services:
     port: 8080
     type: api
     alias: news              # optional: short key → `musing deploy news`
-    collection: news-items   # optional: data-file key; defaults to alias when omitted
+    collection: news-items   # optional: data file or directory key; defaults to alias when omitted
 
 database:
   type: MongoDB
