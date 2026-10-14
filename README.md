@@ -93,6 +93,9 @@ musing tunnel status  # Check tunnel status
 - Checks if tunnel is already running
 - Automatically backgrounds SSH process
 - Auto-managed by deploy command for production deployments
+- Stops only a single TCP listener whose SSH command matches the configured server, key, and forwarding ports; unrelated or ambiguous processes are left running
+
+Tunnel stop requires production settings and process inspection support (macOS or Linux). Manually started tunnels with different arguments are left running. If the listener cannot be verified, the command returns an error without stopping it.
 
 ### ssh
 

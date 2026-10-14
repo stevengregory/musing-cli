@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -10,11 +12,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stevengregory/musing-cli/internal/config"
 	"github.com/stevengregory/musing-cli/internal/health"
+	"github.com/stevengregory/musing-cli/internal/process"
 )
 
 var (
-	execCommand = exec.Command
-	checkPort   = health.CheckPort
+	execCommand        = exec.Command
+	checkPort          = health.CheckPort
+	readProcessCommand = process.ReadCommand
 )
 
 var tunnelCmd = &cobra.Command{
@@ -133,8 +137,13 @@ func tunnelStart() error {
 }
 
 func tunnelStop() error {
-	config.MustFindProjectRoot()
-	cfg := config.GetConfig()
+	_, cfg, err := loadProjectConfig()
+	if err != nil {
+		return err
+	}
+	if cfg.Production == nil || strings.TrimSpace(cfg.Production.Server) == "" {
+		return fmt.Errorf("production server is required to verify the SSH tunnel")
+	}
 
 	prodPort := cfg.Database.ProdPort
 	if prodPort == 0 {
@@ -149,16 +158,9 @@ func tunnelStop() error {
 		return nil
 	}
 
-	// Find process using the port
-	cmd := execCommand("lsof", "-ti", fmt.Sprintf(":%d", prodPort))
-	output, err := cmd.Output()
+	pid, err := findConfiguredTunnelPID(cfg, prodPort)
 	if err != nil {
-		return fmt.Errorf("failed to find tunnel process (is lsof installed?): %w", err)
-	}
-
-	pid := strings.TrimSpace(string(output))
-	if pid == "" {
-		return fmt.Errorf("no process found on port %d", prodPort)
+		return err
 	}
 
 	// Kill the process
@@ -170,6 +172,46 @@ func tunnelStop() error {
 	fmt.Println()
 	fmt.Println(successStyle.Render("✓") + " SSH tunnel stopped")
 	return nil
+}
+
+func findConfiguredTunnelPID(cfg *config.ProjectConfig, port int) (string, error) {
+	// Only listeners can be the forwarding process; connected clients must not
+	// be included in the candidate set.
+	output, err := execCommand("lsof", "-nP", "-a", fmt.Sprintf("-iTCP:%d", port), "-sTCP:LISTEN", "-t").Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to find tunnel listener (is lsof installed?): %w", err)
+	}
+
+	var pid int
+	for _, value := range strings.Fields(string(output)) {
+		number, err := strconv.Atoi(value)
+		if err != nil || number <= 0 || number > 1<<31-1 || strings.Trim(value, "0123456789") != "" {
+			return "", fmt.Errorf("refusing to stop tunnel: invalid listener PID %q", value)
+		}
+		if pid != 0 && pid != number {
+			return "", fmt.Errorf("refusing to stop tunnel: multiple processes listen on port %d", port)
+		}
+		pid = number
+	}
+	if pid == 0 {
+		return "", fmt.Errorf("no listener found on port %d", port)
+	}
+
+	command, err := readProcessCommand(pid)
+	if err != nil {
+		return "", fmt.Errorf("failed to verify tunnel process %d: %w", pid, err)
+	}
+	if filepath.Base(command.Executable) != "ssh" {
+		return "", fmt.Errorf("refusing to stop process %d: listener is not SSH", pid)
+	}
+
+	// Compare actual argv boundaries; flattened process listings can disguise
+	// options as part of a key path or another argument.
+	if len(command.Args) == 0 || filepath.Base(command.Args[0]) != "ssh" || !slices.Equal(command.Args[1:], buildSSHArgs(cfg, true)) {
+		return "", fmt.Errorf("refusing to stop process %d: SSH arguments do not match the configured tunnel", pid)
+	}
+
+	return strconv.Itoa(pid), nil
 }
 
 func tunnelStatus() error {
