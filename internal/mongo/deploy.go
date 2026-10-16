@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -199,12 +198,6 @@ func directoryJSONLines(files []string) ([]byte, error) {
 }
 
 func prepareMongoImport(uri, db string, collection Collection) ([]string, []byte, error) {
-	args := []string{
-		"--uri", uri,
-		"--db", db,
-		"--collection", collection.Name,
-	}
-
 	var input []byte
 	var err error
 	if len(collection.Files) > 0 {
@@ -212,7 +205,18 @@ func prepareMongoImport(uri, db string, collection Collection) ([]string, []byte
 		if err != nil {
 			return nil, nil, err
 		}
-	} else {
+	}
+	return legacyMongoImportArgs(uri, db, collection), input, nil
+}
+
+func legacyMongoImportArgs(uri, db string, collection Collection) []string {
+	args := []string{
+		"--uri", uri,
+		"--db", db,
+		"--collection", collection.Name,
+	}
+
+	if len(collection.Files) == 0 {
 		args = append(args, "--file", collection.File)
 	}
 
@@ -221,50 +225,36 @@ func prepareMongoImport(uri, db string, collection Collection) ([]string, []byte
 		args = append(args, "--jsonArray")
 	}
 
-	return args, input, nil
+	return args
 }
 
 // DeployCollection imports a single collection into MongoDB
-func DeployCollection(uri, db, collectionKey, dataDir string) error {
-	collections, err := DiscoverCollections(dataDir)
+func DeployCollection(uri, db, collectionKey, dataDir string, options ...DeployOptions) error {
+	option, err := deploymentOptions(options)
 	if err != nil {
 		return err
 	}
 
-	coll, exists := collections[collectionKey]
-	if !exists {
-		return fmt.Errorf("collection not found: %s (available: %v)", collectionKey, getCollectionKeys(collections))
-	}
-
-	args, input, err := prepareMongoImport(uri, db, coll)
+	deployment, err := PrepareCollection(collectionKey, dataDir, option)
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("mongoimport", args...)
-	if input != nil {
-		cmd.Stdin = bytes.NewReader(input)
-	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
+	return deployment.Deploy(uri, db)
 }
 
 // DeployAll imports all discovered collections
-func DeployAll(uri, db, dataDir string) error {
-	collections, err := DiscoverCollections(dataDir)
+func DeployAll(uri, db, dataDir string, options ...DeployOptions) error {
+	option, err := deploymentOptions(options)
 	if err != nil {
 		return err
 	}
 
-	for _, key := range getCollectionKeys(collections) {
-		if err := DeployCollection(uri, db, key, dataDir); err != nil {
-			return fmt.Errorf("failed to deploy %s: %w", key, err)
-		}
+	deployment, err := PrepareAll(dataDir, option)
+	if err != nil {
+		return err
 	}
-
-	return nil
+	return deployment.Deploy(uri, db)
 }
 
 // getCollectionKeys returns a slice of collection keys for error messages
