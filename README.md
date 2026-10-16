@@ -170,13 +170,14 @@ Schema numbers must fit finite JavaScript numbers; integer-valued rules must be 
 For a configured collection, deployment:
 
 1. Reads and checks the selected source data and schema, and checks that `mongosh` and `mongoimport` are available. Configured input is captured before database changes; a top-level JSON array must contain objects. For `deploy all`, all selected sources and configured schemas are preflighted before the first collection is changed.
-2. Explicitly drops the target collection, allowing a previously absent collection.
-3. Recreates it with `validator: { $jsonSchema: ... }`, `validationLevel: "strict"`, and `validationAction: "error"`.
-4. Imports the checked data without `--drop` or validation bypass. Imports use `--stopOnError` and `--maintainInsertionOrder`; a creation or import error stops deployment and is returned as a failure, including during `deploy all`.
+2. Asks the selected MongoDB server to parse each configured schema using a read-only `explain` of a `$jsonSchema` query in `queryPlanner` mode. All selected schemas must pass before any target collection is changed, including unconfigured collections in `deploy all`. A schema rejection or any preflight command error stops deployment without dropping targets. The database account needs permission to run `find` on each configured target for this check.
+3. Explicitly drops the target collection, allowing a previously absent collection.
+4. Recreates it with `validator: { $jsonSchema: ... }`, `validationLevel: "strict"`, and `validationAction: "error"`.
+5. Imports the checked data without `--drop` or validation bypass. Imports use `--stopOnError` and `--maintainInsertionOrder`; a creation or import error stops deployment and is returned as a failure, including during `deploy all`.
 
 Unconfigured collections keep their existing import behavior and do not require `mongosh`.
 
-**Replacement is not atomic.** Missing or unreadable schemas, malformed JSON, and unsupported configuration are caught before destructive work. Local parsing does not prove that MongoDB accepts every schema rule or document. A database-side schema error after the drop can leave the collection absent; an import rejection can leave it empty or partially populated. Earlier collections in `deploy all` remain replaced if a later collection fails. This change provides no rollback, staging/swap, or custom-index management.
+**Replacement is not atomic.** Missing or unreadable schemas, malformed JSON, and unsupported configuration are caught locally before destructive work. Server-side semantic preflight catches invalid schema rules such as `"required": "title"` before any targets are dropped. Local parsing alone does not prove MongoDB accepts a schema, and successful server preflight does not guarantee later collection creation or document imports will succeed. A creation failure after the drop can leave the collection absent; an import rejection can leave it empty or partially populated. Earlier collections in `deploy all` remain replaced if a later collection fails after preflight. This change provides no rollback, staging/swap, or custom-index management.
 
 **Production safety:**
 
@@ -257,15 +258,15 @@ production:
 
 ## Development
 
-Schema lifecycle tests run without a database. An additional integration test is opt-in and requires an explicitly supplied **disposable local MongoDB instance**, plus `mongosh` and `mongoimport`:
+Schema lifecycle tests run without a database. Integration tests are opt-in and require an explicitly supplied **disposable local MongoDB instance**, plus `mongosh` and `mongoimport`:
 
 ```bash
 MUSING_MONGO_INTEGRATION=1 \
 MUSING_MONGO_TEST_URI=mongodb://127.0.0.1:27099 \
-go test ./internal/mongo -run '^TestMongoSchemaValidatorIntegration$' -v
+go test ./internal/mongo -run '^TestMongoSchema.*Integration$' -v
 ```
 
-The endpoint must use an explicit loopback host and port, with no credentials, database path, or query string. There is no default endpoint. The test creates and removes its own uniquely named test database and checks valid imports, invalid-document rejection, validator persistence, and repeated full replacement. Leave the opt-in unset for ordinary checks; those skip live database changes.
+The endpoint must use an explicit loopback host and port, with no credentials, database path, or query string. There is no default endpoint. The tests create and remove their own uniquely named test databases and check valid imports, invalid-document rejection, validator persistence, repeated full replacement, and preservation of existing targets when a schema fails semantic preflight in single-collection and all-collection deployments. Leave the opt-in unset for ordinary checks; those skip live database changes.
 
 ```bash
 # Run without installing

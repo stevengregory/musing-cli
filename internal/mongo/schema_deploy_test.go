@@ -121,16 +121,31 @@ func TestSchemaDeploymentLifecycle(t *testing.T) {
 			if err := plan.Deploy(uri, db); err != nil {
 				t.Fatalf("Deploy: %v", err)
 			}
-			if len(*calls) != 2 || (*calls)[0].name != "mongosh" || (*calls)[1].name != "mongoimport" {
-				t.Fatalf("expected schema command before import, got %+v", *calls)
+			if len(*calls) != 3 || (*calls)[0].name != "mongosh" || (*calls)[1].name != "mongosh" || (*calls)[2].name != "mongoimport" {
+				t.Fatalf("expected server preflight and validator commands before import, got %+v", *calls)
 			}
-			shell, importer := (*calls)[0], (*calls)[1]
+			preflight, shell, importer := (*calls)[0], (*calls)[1], (*calls)[2]
+			if len(preflight.args) != 5 || !reflect.DeepEqual(preflight.args[:4], []string{"--quiet", "--norc", uri, "--eval"}) || preflight.input != nil {
+				t.Fatalf("unexpected server preflight arguments or stdin: %+v", preflight)
+			}
 			if !schemaTestHasArgument(shell.args, "--quiet") || !schemaTestHasArgument(shell.args, "--norc") || !schemaTestHasArgument(shell.args, uri) {
 				t.Fatalf("unexpected mongosh arguments: %v", shell.args)
 			}
 			script := schemaTestArgument(t, shell.args, "--eval")
 			dbJSON, _ := json.Marshal(db)
 			schemaJSON, _ := json.Marshal(schema)
+			preflightScript := schemaTestArgument(t, preflight.args, "--eval")
+			if !strings.Contains(preflightScript, "getSiblingDB("+string(dbJSON)+")") || !strings.Contains(preflightScript, "JSON.parse("+string(schemaJSON)+")") {
+				t.Fatalf("preflight does not safely encode database and the same schema: %s", preflightScript)
+			}
+			for _, fragment := range []string{"explain:", "find: name", "filter: {$jsonSchema: schema}", `verbosity: "queryPlanner"`, `collation: {locale: "simple"}`, "checked.ok !== 1", "exit(1)"} {
+				if !strings.Contains(preflightScript, fragment) {
+					t.Errorf("server preflight missing %q: %s", fragment, preflightScript)
+				}
+			}
+			if regexp.MustCompile(`runCommand\(\{\s*(drop|create)\s*:`).MatchString(preflightScript) {
+				t.Fatalf("server schema preflight must be read only: %s", preflightScript)
+			}
 			if !strings.Contains(script, "getSiblingDB("+string(dbJSON)+")") || !strings.Contains(script, "JSON.parse("+string(schemaJSON)+")") {
 				t.Fatalf("script does not safely encode database and schema: %s", script)
 			}
@@ -168,31 +183,108 @@ func TestSchemaDeploymentLifecycle(t *testing.T) {
 }
 
 func TestSchemaDeploymentStopsOnCommandFailure(t *testing.T) {
-	for _, failingName := range []string{"mongosh", "mongoimport"} {
-		t.Run(failingName, func(t *testing.T) {
+	for _, failure := range []struct {
+		stage string
+		call  int
+		want  []string
+	}{
+		{stage: "preflight", call: 1, want: []string{"mongosh"}},
+		{stage: "validator", call: 2, want: []string{"mongosh", "mongosh"}},
+		{stage: "import", call: 3, want: []string{"mongosh", "mongosh", "mongoimport"}},
+	} {
+		t.Run(failure.stage, func(t *testing.T) {
 			root, dataDir, opts := schemaTestFixture(t)
 			schemaTestWrite(t, root, "data/z-later.json", `{"later":true}`)
 			schemaTestCommands(t)
 			var commands []string
-			failure := errors.New("command failed")
+			commandFailure := errors.New("command failed")
 			runCommand = func(name string, _ []string, _ []byte) error {
 				commands = append(commands, name)
-				if name == failingName {
-					return failure
+				if len(commands) == failure.call {
+					return commandFailure
 				}
 				return nil
 			}
-			if err := DeployAll("mongodb://localhost:27017", "test", dataDir, opts); !errors.Is(err, failure) {
+			if err := DeployAll("mongodb://localhost:27017", "test", dataDir, opts); !errors.Is(err, commandFailure) {
 				t.Fatalf("DeployAll should propagate command failure, got %v", err)
 			}
-			want := []string{"mongosh"}
-			if failingName == "mongoimport" {
-				want = append(want, "mongoimport")
-			}
-			if !reflect.DeepEqual(commands, want) {
-				t.Fatalf("continued after failed %s: got %v, want %v", failingName, commands, want)
+			if !reflect.DeepEqual(commands, failure.want) {
+				t.Fatalf("continued after failed %s: got %v, want %v", failure.stage, commands, failure.want)
 			}
 		})
+	}
+}
+
+func TestSchemaDeploymentServerPreflightsAllBeforeLegacyImport(t *testing.T) {
+	root, dataDir, opts := schemaTestFixture(t)
+	schemaTestWrite(t, root, "data/a-legacy.json", `{"legacy":true}`)
+	schemaTestWrite(t, root, "data/z-last.json", `{"last":true}`)
+	schemaTestWrite(t, root, "schemas/last.json", `{"bsonType":"object","required":["last"]}`)
+	opts.Schemas["z-last"] = "schemas/last.json"
+	_, calls := schemaTestCommands(t)
+	if err := DeployAll("mongodb://localhost:27017", "test", dataDir, opts); err != nil {
+		t.Fatal(err)
+	}
+	wantCommands := []string{"mongosh", "mongosh", "mongoimport", "mongosh", "mongoimport", "mongosh", "mongoimport"}
+	if len(*calls) != len(wantCommands) {
+		t.Fatalf("unexpected server preflight and deployment sequence: %+v", *calls)
+	}
+	for index, name := range wantCommands {
+		if (*calls)[index].name != name {
+			t.Fatalf("command %d: got %s, want %s", index, (*calls)[index].name, name)
+		}
+	}
+	for index, name := range []string{"blog_posts", "z_last"} {
+		script := schemaTestArgument(t, (*calls)[index].args, "--eval")
+		if !strings.Contains(script, "explain:") || !strings.Contains(script, "const name = "+jsonString(name)) {
+			t.Fatalf("all selected schemas must pass server preflight before a legacy import: %s", script)
+		}
+	}
+	if schemaTestArgument(t, (*calls)[2].args, "--collection") != "a_legacy" {
+		t.Fatalf("legacy collection must still deploy first after server preflight: %+v", (*calls)[2])
+	}
+}
+
+func TestSchemaDeploymentServerRejectionStopsAllBeforeMutation(t *testing.T) {
+	root, dataDir, opts := schemaTestFixture(t)
+	schemaTestWrite(t, root, "data/a-legacy.json", `{"legacy":true}`)
+	schemaTestWrite(t, root, "data/z-bad.json", `{"title":"new"}`)
+	const invalidSchema = `{"bsonType":"object","required":"title"}`
+	schemaTestWrite(t, root, "schemas/bad.json", invalidSchema)
+	opts.Schemas["z-bad"] = "schemas/bad.json"
+	_, calls := schemaTestCommands(t)
+	plan, err := PrepareAll(dataDir, opts)
+	if err != nil {
+		t.Fatalf("syntactically valid schema must reach the server semantic check: %v", err)
+	}
+	recordCommand := runCommand
+	rejected := errors.New("server rejected schema")
+	encodedSchema := "JSON.parse(" + jsonString(invalidSchema) + ")"
+	runCommand = func(name string, args []string, input []byte) error {
+		if name != "mongosh" {
+			t.Fatalf("server rejection must precede legacy or configured imports: %s", name)
+		}
+		script := schemaTestArgument(t, args, "--eval")
+		if !strings.Contains(script, "explain:") || regexp.MustCompile(`runCommand\(\{\s*(drop|create)\s*:`).MatchString(script) {
+			t.Fatalf("server rejection must precede collection mutation: %s", script)
+		}
+		if err := recordCommand(name, args, input); err != nil {
+			return err
+		}
+		if strings.Contains(script, encodedSchema) {
+			return rejected
+		}
+		return nil
+	}
+	err = plan.Deploy("mongodb://localhost:27017", "test")
+	if !errors.Is(err, rejected) || !strings.Contains(err.Error(), "z-bad") || !strings.Contains(err.Error(), "schema preflight") {
+		t.Fatalf("expected contextual server schema rejection, got %v", err)
+	}
+	if len(*calls) != 2 {
+		t.Fatalf("expected successful first schema preflight then rejected later schema, got %+v", *calls)
+	}
+	if !strings.Contains(schemaTestArgument(t, (*calls)[0].args, "--eval"), `const name = "blog_posts"`) || !strings.Contains(schemaTestArgument(t, (*calls)[1].args, "--eval"), `const name = "z_bad"`) {
+		t.Fatalf("server preflight did not check every selected schema in order: %+v", *calls)
 	}
 }
 
@@ -302,7 +394,7 @@ func TestSchemaDeploymentReadsOnlySelectedSchema(t *testing.T) {
 	if err := plan.Deploy("mongodb://localhost:27017", "test"); err != nil {
 		t.Fatal(err)
 	}
-	if len(*calls) != 2 {
+	if len(*calls) != 3 {
 		t.Fatalf("expected one configured collection deployment: %+v", *calls)
 	}
 }
@@ -470,13 +562,15 @@ func TestSchemaDeploymentUsesPreparedSnapshots(t *testing.T) {
 			if err := plan.Deploy("mongodb://localhost:27017", "test"); err != nil {
 				t.Fatal(err)
 			}
-			if len(*calls) != 2 || string((*calls)[1].input) != want {
+			if len(*calls) != 3 || string((*calls)[2].input) != want {
 				t.Fatalf("import did not use prepared source: %+v", *calls)
 			}
-			script := schemaTestArgument(t, (*calls)[0].args, "--eval")
 			original, _ := json.Marshal(`{"bsonType":"object","required":["slug"]}`)
-			if !strings.Contains(script, "JSON.parse("+string(original)+")") {
-				t.Fatalf("schema changed after preparation: %s", script)
+			for _, call := range (*calls)[:2] {
+				script := schemaTestArgument(t, call.args, "--eval")
+				if !strings.Contains(script, "JSON.parse("+string(original)+")") {
+					t.Fatalf("schema changed between preparation, server preflight, and creation: %s", script)
+				}
 			}
 		})
 	}

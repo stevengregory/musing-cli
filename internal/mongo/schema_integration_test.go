@@ -76,29 +76,9 @@ func TestValidateLocalMongoTestURI(t *testing.T) {
 // Opting in acknowledges that the supplied local endpoint is disposable. This
 // test creates and drops only its uniquely named database, never an existing one.
 func TestMongoSchemaValidatorIntegration(t *testing.T) {
-	uri := os.Getenv("MUSING_MONGO_TEST_URI")
-	if os.Getenv("MUSING_MONGO_INTEGRATION") != "1" || uri == "" {
-		t.Skip("requires MUSING_MONGO_INTEGRATION=1 and an explicit MUSING_MONGO_TEST_URI for a disposable local MongoDB")
-	}
-	if err := validateLocalMongoTestURI(uri); err != nil {
-		t.Fatal(err)
-	}
-	shell, err := exec.LookPath("mongosh")
-	if err != nil {
-		t.Fatal("opted-in integration test requires mongosh")
-	}
-	if _, err := exec.LookPath("mongoimport"); err != nil {
-		t.Fatal("opted-in integration test requires mongoimport")
-	}
-
-	dbName := "musing_schema_test_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	shell, uri := requireMongoTestEndpoint(t)
+	dbName := newMongoTestDatabase(t, shell, uri)
 	dbJSON := mongoTestJSON(t, dbName)
-	t.Cleanup(func() {
-		output, err := runMongoTestScript(shell, uri, "const result = db.getSiblingDB("+dbJSON+").dropDatabase(); if (result.ok !== 1) throw new Error('test database cleanup failed');")
-		if err != nil {
-			t.Errorf("test database cleanup failed: %s\n%s", redactMongoTestURI(err.Error(), uri), output)
-		}
-	})
 
 	projectRoot := t.TempDir()
 	dataDir := filepath.Join(projectRoot, "data")
@@ -148,6 +128,125 @@ func TestMongoSchemaValidatorIntegration(t *testing.T) {
 	}
 }
 
+func TestMongoSchemaSemanticPreflightIntegration(t *testing.T) {
+	shell, uri := requireMongoTestEndpoint(t)
+	originalSchema := json.RawMessage(`{"bsonType":"object","required":["label"],"properties":{"label":{"bsonType":"string"}}}`)
+	// This is valid JSON, but MongoDB requires an array for "required". Local
+	// JSON parsing alone cannot reject it before a destructive replacement.
+	invalidSchema := []byte(`{"bsonType":"object","required":"title"}`)
+	tests := []struct {
+		name         string
+		createTarget bool
+		sentinel     bool
+		all          bool
+	}{
+		{name: "existing sentinel", createTarget: true, sentinel: true},
+		{name: "empty collection", createTarget: true},
+		{name: "missing collection"},
+		{name: "all preserves earlier legacy collection", createTarget: true, sentinel: true, all: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dbName := newMongoTestDatabase(t, shell, uri)
+			dbJSON := mongoTestJSON(t, dbName)
+			projectRoot := t.TempDir()
+			dataDir := filepath.Join(projectRoot, "data")
+			schemaDir := filepath.Join(projectRoot, "schemas")
+			for _, dir := range []string{dataDir, schemaDir} {
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			writeMongoTestFixture(t, filepath.Join(dataDir, "test-records.json"), []byte(`{"label":"replacement"}`))
+			writeMongoTestFixture(t, filepath.Join(schemaDir, "test-records.json"), invalidSchema)
+			options := mongo.DeployOptions{
+				ProjectRoot: projectRoot,
+				Schemas: map[string]string{
+					"test-records": filepath.Join("schemas", "test-records.json"),
+				},
+			}
+			setup := "const testDB = db.getSiblingDB(" + dbJSON + ");"
+			if tt.createTarget {
+				setup += "testDB.createCollection('test_records', {validator: {$jsonSchema: " + mongoTestJSON(t, originalSchema) + "}, validationLevel: 'strict', validationAction: 'error'});"
+			}
+			if tt.sentinel {
+				setup += "testDB.getCollection('test_records').insertOne({_id:'configured-sentinel', label:'sentinel'});"
+			}
+			if tt.all {
+				// Sorting places this unconfigured collection before test-records.
+				writeMongoTestFixture(t, filepath.Join(dataDir, "a-legacy.json"), []byte(`{"label":"replacement"}`))
+				setup += "testDB.getCollection('a_legacy').insertOne({_id:'legacy-sentinel', label:'sentinel'});"
+			}
+			if output, err := runMongoTestScript(shell, uri, setup); err != nil {
+				t.Fatalf("sentinel setup failed: %s\n%s", redactMongoTestURI(err.Error(), uri), output)
+			}
+
+			_, err := captureMongoTestDeployment(t, uri, func() error {
+				if tt.all {
+					return mongo.DeployAll(uri, dbName, dataDir, options)
+				}
+				return mongo.DeployCollection(uri, dbName, "test-records", dataDir, options)
+			})
+			if err == nil {
+				t.Fatal("deployment accepted a semantically invalid MongoDB schema")
+			}
+			if !strings.Contains(err.Error(), "schema preflight") {
+				t.Fatalf("expected schema preflight rejection, got %s", redactMongoTestURI(err.Error(), uri))
+			}
+
+			assertion := "const testDB = db.getSiblingDB(" + dbJSON + ");"
+			if tt.createTarget {
+				documents := []map[string]any{}
+				if tt.sentinel {
+					documents = append(documents, map[string]any{"label": "sentinel"})
+					assertion += "if (testDB.getCollection('test_records').countDocuments({_id:'configured-sentinel'}) !== 1) throw new Error('configured sentinel was lost');"
+				}
+				assertMongoTestState(t, shell, uri, dbName, originalSchema, documents)
+			} else {
+				assertion += "if (testDB.getCollectionInfos().length !== 0) throw new Error('schema preflight created a collection');"
+			}
+			if tt.all {
+				assertion += "const legacy = testDB.getCollection('a_legacy'); if (legacy.countDocuments() !== 1 || legacy.countDocuments({_id:'legacy-sentinel', label:'sentinel'}) !== 1) throw new Error('earlier legacy collection was changed');"
+			}
+			if output, err := runMongoTestScript(shell, uri, assertion); err != nil {
+				t.Fatalf("preflight preservation assertion failed: %s\n%s", redactMongoTestURI(err.Error(), uri), output)
+			}
+		})
+	}
+}
+
+func requireMongoTestEndpoint(t *testing.T) (shell, uri string) {
+	t.Helper()
+	uri = os.Getenv("MUSING_MONGO_TEST_URI")
+	if os.Getenv("MUSING_MONGO_INTEGRATION") != "1" || uri == "" {
+		t.Skip("requires MUSING_MONGO_INTEGRATION=1 and an explicit MUSING_MONGO_TEST_URI for a disposable local MongoDB")
+	}
+	if err := validateLocalMongoTestURI(uri); err != nil {
+		t.Fatal(err)
+	}
+	shell, err := exec.LookPath("mongosh")
+	if err != nil {
+		t.Fatal("opted-in integration test requires mongosh")
+	}
+	if _, err := exec.LookPath("mongoimport"); err != nil {
+		t.Fatal("opted-in integration test requires mongoimport")
+	}
+	return shell, uri
+}
+
+func newMongoTestDatabase(t *testing.T, shell, uri string) string {
+	t.Helper()
+	dbName := "musing_schema_test_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	dbJSON := mongoTestJSON(t, dbName)
+	t.Cleanup(func() {
+		output, err := runMongoTestScript(shell, uri, "const result = db.getSiblingDB("+dbJSON+").dropDatabase(); if (result.ok !== 1) throw new Error('test database cleanup failed');")
+		if err != nil {
+			t.Errorf("test database cleanup failed: %s\n%s", redactMongoTestURI(err.Error(), uri), output)
+		}
+	})
+	return dbName
+}
+
 func writeMongoTestFixture(t *testing.T, path string, content []byte) {
 	t.Helper()
 	if err := os.WriteFile(path, content, 0o600); err != nil {
@@ -177,18 +276,25 @@ func runMongoTestScript(shell, uri, script string) (string, error) {
 
 func deployMongoTestCollection(t *testing.T, uri, dbName, dataDir string, options mongo.DeployOptions) (string, error) {
 	t.Helper()
+	return captureMongoTestDeployment(t, uri, func() error {
+		return mongo.DeployCollection(uri, dbName, "test-records", dataDir, options)
+	})
+}
+
+func captureMongoTestDeployment(t *testing.T, uri string, deploy func() error) (string, error) {
+	t.Helper()
 	outputPath := filepath.Join(t.TempDir(), "deployment-output")
 	output, err := os.Create(outputPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// DeployCollection forwards tool output to process streams. Capture it so
+	// Deployment forwards tool output to process streams. Capture it so
 	// test failures can show diagnostics without printing the supplied URI.
 	err = func() error {
 		stdout, stderr := os.Stdout, os.Stderr
 		defer func() { os.Stdout, os.Stderr = stdout, stderr }()
 		os.Stdout, os.Stderr = output, output
-		return mongo.DeployCollection(uri, dbName, "test-records", dataDir, options)
+		return deploy()
 	}()
 	if closeErr := output.Close(); closeErr != nil {
 		t.Fatal(closeErr)

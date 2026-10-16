@@ -287,6 +287,17 @@ func (deployment *Deployment) Deploy(uri, db string) error {
 	if deployment == nil {
 		return fmt.Errorf("deployment is not prepared")
 	}
+	// The server parses every selected schema before any collection, including
+	// legacy imports earlier in source-key order, can be dropped or replaced.
+	for _, prepared := range deployment.collections {
+		if prepared.schema == nil {
+			continue
+		}
+		args := []string{"--quiet", "--norc", uri, "--eval", validatorPreflightScript(db, prepared.collection.Name, prepared.schema)}
+		if err := runCommand("mongosh", args, nil); err != nil {
+			return fmt.Errorf("collection %q: server schema preflight failed: %w", prepared.key, err)
+		}
+	}
 	for _, prepared := range deployment.collections {
 		collection := prepared.collection
 		if prepared.schema != nil {
@@ -312,6 +323,29 @@ func (deployment *Deployment) Deploy(uri, db string) error {
 func jsonString(value string) string {
 	encoded, _ := json.Marshal(value)
 	return string(encoded)
+}
+
+func validatorPreflightScript(database, collection string, schema []byte) string {
+	return fmt.Sprintf(`(() => {
+  const name = %s;
+  try {
+    const target = db.getSiblingDB(%s);
+    const schema = JSON.parse(%s);
+    const checked = target.runCommand({
+      explain: {
+        find: name,
+        filter: {$jsonSchema: schema},
+        collation: {locale: "simple"}
+      },
+      verbosity: "queryPlanner"
+    });
+    if (!checked || checked.ok !== 1) throw checked;
+  } catch (error) {
+    const code = error && typeof error.code === "number" ? error.code : "unknown";
+    print("Schema preflight failed for collection " + name + " (MongoDB error code " + code + ").");
+    exit(1);
+  }
+})();`, jsonString(collection), jsonString(database), jsonString(string(schema)))
 }
 
 func validatorScript(database, collection string, schema []byte) string {
