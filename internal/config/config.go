@@ -28,11 +28,38 @@ type ServiceConfig struct {
 
 // DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	Type     string `yaml:"type"` // mongodb, postgres, etc
-	Name     string `yaml:"name"` // Database name
-	DevPort  int    `yaml:"devPort"`
-	ProdPort int    `yaml:"prodPort"`
-	DataDir  string `yaml:"dataDir"` // Relative path to data directory
+	Type     string            `yaml:"type"` // mongodb, postgres, etc
+	Name     string            `yaml:"name"` // Database name
+	DevPort  int               `yaml:"devPort"`
+	ProdPort int               `yaml:"prodPort"`
+	DataDir  string            `yaml:"dataDir"`           // Relative path to data directory
+	Schemas  CollectionSchemas `yaml:"schemas,omitempty"` // Optional source-key -> JSON Schema file, relative to the project root
+}
+
+// CollectionSchemas maps exact data source keys to schema files, without
+// introducing validator modes or other collection options.
+type CollectionSchemas map[string]string
+
+func (schemas *CollectionSchemas) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode {
+		return fmt.Errorf("database.schemas must map collection source keys to schema file paths")
+	}
+	paths := make(CollectionSchemas, len(node.Content)/2)
+	for i := 0; i < len(node.Content); i += 2 {
+		key, value := node.Content[i], node.Content[i+1]
+		if key.Kind != yaml.ScalarNode || key.Tag != "!!str" || strings.TrimSpace(key.Value) == "" {
+			return fmt.Errorf("database.schemas keys must be nonempty collection source strings")
+		}
+		if value.Kind != yaml.ScalarNode || value.Tag != "!!str" || strings.TrimSpace(value.Value) == "" {
+			return fmt.Errorf("database.schemas[%q] must be a nonempty schema file path", key.Value)
+		}
+		if _, exists := paths[key.Value]; exists {
+			return fmt.Errorf("duplicate database.schemas source key %q", key.Value)
+		}
+		paths[key.Value] = value.Value
+	}
+	*schemas = paths
+	return nil
 }
 
 // ProductionConfig represents optional production deployment settings
@@ -93,6 +120,9 @@ func loadConfig(configPath string) error {
 	var config ProjectConfig
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return fmt.Errorf("failed to parse YAML: %w", err)
+	}
+	if len(config.Database.Schemas) > 0 && !strings.EqualFold(config.Database.Type, "MongoDB") {
+		return fmt.Errorf("database.schemas requires database.type MongoDB")
 	}
 
 	currentConfig = &config

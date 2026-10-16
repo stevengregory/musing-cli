@@ -116,10 +116,9 @@ func deployData(collection, env string) error {
 		return err
 	}
 
-	if collection != "all" {
-		if target, ok := serviceAliases(cfg)[collection]; ok {
-			collection = target
-		}
+	collection, deployment, err := prepareDataDeployment(projectRoot, cfg, collection)
+	if err != nil {
+		return fmt.Errorf("deployment preflight failed: %w", err)
 	}
 
 	fmt.Println(deployHeaderStyle.Render(fmt.Sprintf("%s Deployment - %s", cfg.Database.Type, env)))
@@ -167,21 +166,18 @@ func deployData(collection, env string) error {
 		ui.Success(fmt.Sprintf("%s is running", cfg.Database.Type))
 	}
 
-	// Get data directory from project root
-	dataDir := filepath.Join(projectRoot, cfg.Database.DataDir)
-
 	fmt.Println()
 
 	if collection == "all" {
 		ui.Info("Deploying all collections...")
-		if err := mongo.DeployAll(mongoURI, cfg.Database.Name, dataDir); err != nil {
+		if err := deployment.Deploy(mongoURI, cfg.Database.Name); err != nil {
 			ui.Error(fmt.Sprintf("Failed to deploy: %v", err))
 			return err
 		}
 		ui.Success("All collections deployed successfully!")
 	} else {
 		ui.Info(fmt.Sprintf("Deploying collection: %s", collection))
-		if err := mongo.DeployCollection(mongoURI, cfg.Database.Name, collection, dataDir); err != nil {
+		if err := deployment.Deploy(mongoURI, cfg.Database.Name); err != nil {
 			ui.Error(fmt.Sprintf("Failed to deploy: %v", err))
 			return err
 		}
@@ -198,4 +194,22 @@ func deployData(collection, env string) error {
 	}
 
 	return nil
+}
+
+func prepareDataDeployment(projectRoot string, cfg *config.ProjectConfig, collection string) (string, *mongo.Deployment, error) {
+	if collection != "all" {
+		if target, ok := serviceAliases(cfg)[collection]; ok {
+			collection = target
+		}
+	}
+	options := mongo.DeployOptions{ProjectRoot: projectRoot, Schemas: cfg.Database.Schemas}
+	dataDir := filepath.Join(projectRoot, cfg.Database.DataDir)
+	var deployment *mongo.Deployment
+	var err error
+	if collection == "all" {
+		deployment, err = mongo.PrepareAll(dataDir, options)
+	} else {
+		deployment, err = mongo.PrepareCollection(collection, dataDir, options)
+	}
+	return collection, deployment, err
 }

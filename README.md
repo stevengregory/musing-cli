@@ -19,6 +19,7 @@ This is my DevOps command center for [stevengregory.io](https://stevengregory.io
 
 - Docker Desktop and Docker Compose (for `dev`, `monitor`, and logs)
 - MongoDB Database Tools, including `mongoimport` (for `deploy`)
+- MongoDB Shell, `mongosh` (only when deploying a collection with a configured schema)
 - SSH + `lsof` (for `tunnel`, `ssh`, and production deploys)
 - `gum` (for styled non-TUI command output)
 
@@ -136,13 +137,47 @@ Directory collections are useful when each document deserves isolated source his
 
 ```text
 data/
-├── news.json
+├── news-items.json
 └── blog-posts/
     ├── first-post.json
     └── second-post.json
 ```
 
-Each file under `blog-posts/` must contain exactly one JSON object. Like file-backed collections, the directory is a complete snapshot: deployment uses `--drop`, so removing a source file removes that document on the next deployment.
+Each file under `blog-posts/` must contain exactly one JSON object. Every discovered collection is deployed as a full replacement of its previous contents. Without a configured schema, `mongoimport --drop` performs that replacement.
+
+#### Collection schemas (optional)
+
+Use `database.schemas` to map an exact **source key** to a JSON Schema file. For example, `news-items` identifies `data/news-items.json`; it creates the MongoDB collection `news_items`. A service alias such as `news` resolves to `news-items` before schema selection. Use `news-items` in the mapping, rather than the alias `news`, normalized database name `news_items`, or filename `news-items.json`.
+
+Schema paths resolve from the project root containing `.musing.yaml`, regardless of the directory where `musing` is invoked. Absolute paths are also accepted. Keep schemas outside `database.dataDir`, including through symlinks, so collection discovery cannot import the schemas themselves. Unknown source keys and unsupported schema configuration fail preflight.
+
+A schema file contains one plain JSON Schema object supported by MongoDB's [`$jsonSchema` validator](https://www.mongodb.com/docs/manual/reference/operator/query/jsonschema/), for example `schemas/news-items.schema.json`:
+
+```json
+{
+  "bsonType": "object",
+  "required": ["title"],
+  "properties": {
+    "title": { "bsonType": "string" }
+  }
+}
+```
+
+The CLI wraps this object in `{ "$jsonSchema": ... }`. Supply the schema object itself, rather than a validator wrapper, collection creation options, index definitions, or validation modes.
+
+Schema numbers must fit finite JavaScript numbers; integer-valued rules must be within the safe integer range, −9007199254740991 through 9007199254740991. Values that would overflow or underflow are rejected during preflight so `mongosh` cannot silently change the configured rule. Ordinary fractional rules are supported.
+
+For a configured collection, deployment:
+
+1. Reads and checks the selected source data and schema, and checks that `mongosh` and `mongoimport` are available. Configured input is captured before database changes; a top-level JSON array must contain objects. For `deploy all`, all selected sources and configured schemas are preflighted before the first collection is changed.
+2. Asks the selected MongoDB server to parse each configured schema using a read-only `explain` of a `$jsonSchema` query in `queryPlanner` mode. All selected schemas must pass before any target collection is changed, including unconfigured collections in `deploy all`. A schema rejection or any preflight command error stops deployment without dropping targets. The database account needs permission to run `find` on each configured target for this check.
+3. Explicitly drops the target collection, allowing a previously absent collection.
+4. Recreates it with `validator: { $jsonSchema: ... }`, `validationLevel: "strict"`, and `validationAction: "error"`.
+5. Imports the checked data without `--drop` or validation bypass. Imports use `--stopOnError` and `--maintainInsertionOrder`; a creation or import error stops deployment and is returned as a failure, including during `deploy all`.
+
+Unconfigured collections keep their existing import behavior and do not require `mongosh`.
+
+**Replacement is not atomic.** Missing or unreadable schemas, malformed JSON, and unsupported configuration are caught locally before destructive work. Server-side semantic preflight catches invalid schema rules such as `"required": "title"` before any targets are dropped. Local parsing alone does not prove MongoDB accepts a schema, and successful server preflight does not guarantee later collection creation or document imports will succeed. A creation failure after the drop can leave the collection absent; an import rejection can leave it empty or partially populated. Earlier collections in `deploy all` remain replaced if a later collection fails after preflight. This change provides no rollback, staging/swap, or custom-index management.
 
 **Production safety:**
 
@@ -190,6 +225,10 @@ database:
   devPort: 27018
   prodPort: 27019
   dataDir: data
+  # Optional: exact source key -> plain JSON Schema file, outside dataDir.
+  # Relative paths resolve from this project's root, not the caller's directory.
+  schemas:
+    news-items: schemas/news-items.schema.json
 
 # Optional: Production deployment settings
 production:
@@ -218,6 +257,16 @@ production:
 - Single Go binary; external tools are only needed for the stack operations that use them
 
 ## Development
+
+Schema lifecycle tests run without a database. Integration tests are opt-in and require an explicitly supplied **disposable local MongoDB instance**, plus `mongosh` and `mongoimport`:
+
+```bash
+MUSING_MONGO_INTEGRATION=1 \
+MUSING_MONGO_TEST_URI=mongodb://127.0.0.1:27099 \
+go test ./internal/mongo -run '^TestMongoSchema.*Integration$' -v
+```
+
+The endpoint must use an explicit loopback host and port, with no credentials, database path, or query string. There is no default endpoint. The tests create and remove their own uniquely named test databases and check valid imports, invalid-document rejection, validator persistence, repeated full replacement, and preservation of existing targets when a schema fails semantic preflight in single-collection and all-collection deployments. Leave the opt-in unset for ordinary checks; those skip live database changes.
 
 ```bash
 # Run without installing
