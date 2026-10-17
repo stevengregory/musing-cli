@@ -147,9 +147,27 @@ Each file under `blog-posts/` must contain exactly one JSON object. Every discov
 
 #### Collection schemas (optional)
 
-Use `database.schemas` to map an exact **source key** to a JSON Schema file. For example, `news-items` identifies `data/news-items.json`; it creates the MongoDB collection `news_items`. A service alias such as `news` resolves to `news-items` before schema selection. Use `news-items` in the mapping, rather than the alias `news`, normalized database name `news_items`, or filename `news-items.json`.
+Add an optional `schema` filename to a service in the existing `services` list:
 
-Schema paths resolve from the project root containing `.musing.yaml`, regardless of the directory where `musing` is invoked. Absolute paths are also accepted. Keep schemas outside `database.dataDir`, including through symlinks, so collection discovery cannot import the schemas themselves. Unknown source keys and unsupported schema configuration fail preflight.
+```yaml
+database:
+  # Preserve existing database settings.
+  schemaDir: schemas
+
+services:
+  - name: random-quotes-api
+    port: 8083
+    type: api
+    alias: quotes
+    collection: random_quotes
+    schema: random_quotes.schema.json
+```
+
+`schema` must be a filename with an extension, such as `random_quotes.schema.json`. It is a string, not a boolean. Directory components, forward or backslash separators, absolute paths, and traversal such as `../` are rejected. A service with a schema must explicitly set `collection`; the CLI never infers a collection from the schema filename.
+
+`database.schemaDir` defaults to `schemas`. Relative directories resolve from the project root containing `.musing.yaml`, regardless of where `musing` is invoked; absolute directories are also accepted. The filename then resolves within that directory. Keep schema files outside `database.dataDir`, including through symlinks, so collection discovery cannot import them. Setting `schemaDir` alone does not enable validation or discover schemas. Omit a service's `schema` to keep its existing import behavior, unless the collection has another explicit schema declaration.
+
+`collection` is the exact **source key**: `news-items` identifies `data/news-items.json` or `data/news-items/` and creates the MongoDB collection `news_items`; `random_quotes` stays `random_quotes`. Existing aliases continue to resolve to their service's collection, so `musing deploy quotes` and `musing deploy all` both use the schema declared for `random_quotes`. The schema filename can differ from the collection key. Unknown source keys and unsupported schema configuration fail preflight.
 
 A schema file contains one plain JSON Schema object supported by MongoDB's [`$jsonSchema` validator](https://www.mongodb.com/docs/manual/reference/operator/query/jsonschema/), for example `schemas/news-items.schema.json`:
 
@@ -178,6 +196,23 @@ For a configured collection, deployment:
 Unconfigured collections keep their existing import behavior and do not require `mongosh`.
 
 **Replacement is not atomic.** Missing or unreadable schemas, malformed JSON, and unsupported configuration are caught locally before destructive work. Server-side semantic preflight catches invalid schema rules such as `"required": "title"` before any targets are dropped. Local parsing alone does not prove MongoDB accepts a schema, and successful server preflight does not guarantee later collection creation or document imports will succeed. A creation failure after the drop can leave the collection absent; an import rejection can leave it empty or partially populated. Earlier collections in `deploy all` remain replaced if a later collection fails after preflight. This change provides no rollback, staging/swap, or custom-index management.
+
+#### Migrating from v0.10.0
+
+The v0.10.0 `database.schemas` mapping remains supported as a **deprecated compatibility path**. Its keys remain exact source keys, and its paths still resolve from the project root (or remain absolute); `schemaDir` does not change their meaning.
+
+For example, replace this legacy declaration:
+
+```yaml
+database:
+  # Preserve existing database settings.
+  schemas:
+    random_quotes: schemas/random_quotes.schema.json
+```
+
+with the service-level example above: keep `services` as a list, preserve every existing name, port, type, alias, and collection, add `schema: random_quotes.schema.json` to the service with `collection: random_quotes`, and remove that collection's legacy map entry. Set `schemaDir: schemas` explicitly or omit it to use the default. Schema file contents stay plain MongoDB JSON Schema bodies.
+
+During migration, old and new declarations may coexist only when they resolve to the same schema path for a collection. Conflicting paths, or multiple services declaring different schemas for the same collection, fail before any target changes, even when deploying another collection. Identical duplicate declarations are accepted. Collections with only legacy declarations continue to work, including those without a service entry.
 
 **Production safety:**
 
@@ -217,6 +252,7 @@ services:
     type: api
     alias: news # Optional: short key for `musing deploy news`
     collection: news-items # Optional: data file or directory key; defaults to alias when omitted
+    schema: news-items.schema.json # Optional filename; requires an explicit collection
 
 # Database configuration
 database:
@@ -225,10 +261,9 @@ database:
   devPort: 27018
   prodPort: 27019
   dataDir: data
-  # Optional: exact source key -> plain JSON Schema file, outside dataDir.
-  # Relative paths resolve from this project's root, not the caller's directory.
-  schemas:
-    news-items: schemas/news-items.schema.json
+  # Optional: directory for service schema filenames, outside dataDir.
+  # Defaults to schemas; relative paths resolve from this project's root.
+  schemaDir: schemas
 
 # Optional: Production deployment settings
 production:

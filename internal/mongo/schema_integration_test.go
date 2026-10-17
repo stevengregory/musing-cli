@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stevengregory/musing-cli/internal/config"
 	"github.com/stevengregory/musing-cli/internal/mongo"
 )
 
@@ -89,18 +90,21 @@ func TestMongoSchemaValidatorIntegration(t *testing.T) {
 		}
 	}
 	dataPath := filepath.Join(dataDir, "test-records.json")
-	schemaPath := filepath.Join(schemaDir, "test-records.json")
-	options := mongo.DeployOptions{
-		ProjectRoot: projectRoot,
-		Schemas: map[string]string{
-			"test-records": filepath.Join("schemas", "test-records.json"),
-		},
-	}
+	schemaPath := filepath.Join(schemaDir, "records.schema.json")
 	firstSchema := json.RawMessage(`{"bsonType":"object","required":["label"],"properties":{"label":{"bsonType":"string","enum":["first"]}}}`)
 	secondSchema := json.RawMessage(`{"bsonType":"object","required":["label","stage"],"properties":{"label":{"bsonType":"string","enum":["second"]},"stage":{"bsonType":"string","enum":["ready"]}}}`)
-
 	writeMongoTestFixture(t, schemaPath, firstSchema)
 	writeMongoTestFixture(t, dataPath, []byte(`{"label":"first"}`))
+
+	cfg := mongoTestSchemaConfig("") // The default schema directory is project-root/schemas.
+	schemas, err := cfg.ResolveCollectionSchemas(projectRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := mongo.DeployOptions{
+		ProjectRoot: projectRoot,
+		Schemas:     schemas,
+	}
 	if output, err := deployMongoTestCollection(t, uri, dbName, dataDir, options); err != nil {
 		t.Fatalf("valid document deployment failed: %s\n%s", redactMongoTestURI(err.Error(), uri), output)
 	}
@@ -139,11 +143,16 @@ func TestMongoSchemaSemanticPreflightIntegration(t *testing.T) {
 		createTarget bool
 		sentinel     bool
 		all          bool
+		schema       []byte
+		missing      bool
+		wantError    string
 	}{
-		{name: "existing sentinel", createTarget: true, sentinel: true},
-		{name: "empty collection", createTarget: true},
-		{name: "missing collection"},
-		{name: "all preserves earlier legacy collection", createTarget: true, sentinel: true, all: true},
+		{name: "existing sentinel", createTarget: true, sentinel: true, schema: invalidSchema, wantError: "schema preflight"},
+		{name: "empty collection", createTarget: true, schema: invalidSchema, wantError: "schema preflight"},
+		{name: "missing collection", schema: invalidSchema, wantError: "schema preflight"},
+		{name: "all preserves earlier legacy collection", createTarget: true, sentinel: true, all: true, schema: invalidSchema, wantError: "schema preflight"},
+		{name: "all preserves targets with later malformed schema", createTarget: true, sentinel: true, all: true, schema: []byte(`{"bsonType":`), wantError: "schema"},
+		{name: "all preserves targets with later missing schema", createTarget: true, sentinel: true, all: true, missing: true, wantError: "schema"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -151,20 +160,18 @@ func TestMongoSchemaSemanticPreflightIntegration(t *testing.T) {
 			dbJSON := mongoTestJSON(t, dbName)
 			projectRoot := t.TempDir()
 			dataDir := filepath.Join(projectRoot, "data")
-			schemaDir := filepath.Join(projectRoot, "schemas")
+			configuredSchemaDir := filepath.Join("config", "validators")
+			schemaDir := filepath.Join(projectRoot, configuredSchemaDir)
 			for _, dir := range []string{dataDir, schemaDir} {
 				if err := os.MkdirAll(dir, 0o755); err != nil {
 					t.Fatal(err)
 				}
 			}
 			writeMongoTestFixture(t, filepath.Join(dataDir, "test-records.json"), []byte(`{"label":"replacement"}`))
-			writeMongoTestFixture(t, filepath.Join(schemaDir, "test-records.json"), invalidSchema)
-			options := mongo.DeployOptions{
-				ProjectRoot: projectRoot,
-				Schemas: map[string]string{
-					"test-records": filepath.Join("schemas", "test-records.json"),
-				},
+			if !tt.missing {
+				writeMongoTestFixture(t, filepath.Join(schemaDir, "records.schema.json"), tt.schema)
 			}
+			cfg := mongoTestSchemaConfig(configuredSchemaDir)
 			setup := "const testDB = db.getSiblingDB(" + dbJSON + ");"
 			if tt.createTarget {
 				setup += "testDB.createCollection('test_records', {validator: {$jsonSchema: " + mongoTestJSON(t, originalSchema) + "}, validationLevel: 'strict', validationAction: 'error'});"
@@ -182,16 +189,21 @@ func TestMongoSchemaSemanticPreflightIntegration(t *testing.T) {
 			}
 
 			_, err := captureMongoTestDeployment(t, uri, func() error {
+				schemas, err := cfg.ResolveCollectionSchemas(projectRoot)
+				if err != nil {
+					return err
+				}
+				options := mongo.DeployOptions{ProjectRoot: projectRoot, Schemas: schemas}
 				if tt.all {
 					return mongo.DeployAll(uri, dbName, dataDir, options)
 				}
 				return mongo.DeployCollection(uri, dbName, "test-records", dataDir, options)
 			})
 			if err == nil {
-				t.Fatal("deployment accepted a semantically invalid MongoDB schema")
+				t.Fatal("deployment accepted an invalid or missing MongoDB schema")
 			}
-			if !strings.Contains(err.Error(), "schema preflight") {
-				t.Fatalf("expected schema preflight rejection, got %s", redactMongoTestURI(err.Error(), uri))
+			if !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("expected %q rejection, got %s", tt.wantError, redactMongoTestURI(err.Error(), uri))
 			}
 
 			assertion := "const testDB = db.getSiblingDB(" + dbJSON + ");"
@@ -212,6 +224,23 @@ func TestMongoSchemaSemanticPreflightIntegration(t *testing.T) {
 				t.Fatalf("preflight preservation assertion failed: %s\n%s", redactMongoTestURI(err.Error(), uri), output)
 			}
 		})
+	}
+}
+
+func mongoTestSchemaConfig(schemaDir string) config.ProjectConfig {
+	return config.ProjectConfig{
+		Services: []config.ServiceConfig{{
+			Name:       "records-api",
+			Type:       "api",
+			Alias:      "records",
+			Collection: "test-records",
+			Schema:     "records.schema.json",
+		}},
+		Database: config.DatabaseConfig{
+			Type:      "MongoDB",
+			DataDir:   "data",
+			SchemaDir: schemaDir,
+		},
 	}
 }
 

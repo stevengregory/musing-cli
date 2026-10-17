@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -24,16 +25,88 @@ type ServiceConfig struct {
 	Type       string `yaml:"type"`                 // frontend, api, database
 	Alias      string `yaml:"alias,omitempty"`      // Optional: short CLI name for `musing deploy`. Falls back to data file key when omitted.
 	Collection string `yaml:"collection,omitempty"` // Optional: data file or directory key. When omitted, defaults to Alias.
+	Schema     string `yaml:"schema,omitempty"`     // Optional schema filename under database.schemaDir; requires an explicit Collection.
+}
+
+func (service *ServiceConfig) UnmarshalYAML(node *yaml.Node) error {
+	filename, declared, err := schemaStringField(node, "schema", "service schema")
+	if err != nil {
+		return err
+	}
+	if declared {
+		if err := validateSchemaFilename(filename); err != nil {
+			return err
+		}
+	}
+	type serviceFields ServiceConfig
+	var decoded serviceFields
+	if err := node.Decode(&decoded); err != nil {
+		return err
+	}
+	*service = ServiceConfig(decoded)
+	return nil
 }
 
 // DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	Type     string            `yaml:"type"` // mongodb, postgres, etc
-	Name     string            `yaml:"name"` // Database name
-	DevPort  int               `yaml:"devPort"`
-	ProdPort int               `yaml:"prodPort"`
-	DataDir  string            `yaml:"dataDir"`           // Relative path to data directory
-	Schemas  CollectionSchemas `yaml:"schemas,omitempty"` // Optional source-key -> JSON Schema file, relative to the project root
+	Type     string `yaml:"type"` // mongodb, postgres, etc
+	Name     string `yaml:"name"` // Database name
+	DevPort  int    `yaml:"devPort"`
+	ProdPort int    `yaml:"prodPort"`
+	DataDir  string `yaml:"dataDir"` // Relative path to data directory
+	// Schemas retains source-key -> schema paths relative to the project root.
+	//
+	// Deprecated: use ServiceConfig.Schema and DatabaseConfig.SchemaDir.
+	Schemas   CollectionSchemas `yaml:"schemas,omitempty"`
+	SchemaDir string            `yaml:"schemaDir,omitempty"` // Service schema directory, relative to the project root; defaults to schemas.
+}
+
+func (database *DatabaseConfig) UnmarshalYAML(node *yaml.Node) error {
+	if _, _, err := schemaStringField(node, "schemaDir", "database.schemaDir"); err != nil {
+		return err
+	}
+	type databaseFields DatabaseConfig
+	decoded := databaseFields{SchemaDir: "schemas"}
+	if err := node.Decode(&decoded); err != nil {
+		return err
+	}
+	*database = DatabaseConfig(decoded)
+	return nil
+}
+
+func schemaStringField(node *yaml.Node, name, context string) (string, bool, error) {
+	// Let YAML apply mapping-merge precedence before inspecting scalar types;
+	// decoding straight into string fields would coerce numeric and boolean values.
+	var fields map[string]yaml.Node
+	if err := node.Decode(&fields); err != nil {
+		return "", false, err
+	}
+	value, declared := fields[name]
+	if !declared {
+		return "", false, nil
+	}
+	resolved := &value
+	seen := make(map[*yaml.Node]bool)
+	for resolved.Kind == yaml.AliasNode {
+		if resolved.Alias == nil || seen[resolved] {
+			return "", true, fmt.Errorf("%s must be a nonempty string", context)
+		}
+		seen[resolved] = true
+		resolved = resolved.Alias
+	}
+	if resolved.Kind != yaml.ScalarNode || resolved.Tag != "!!str" || strings.TrimSpace(resolved.Value) == "" {
+		return "", true, fmt.Errorf("%s must be a nonempty string", context)
+	}
+	return resolved.Value, true, nil
+}
+
+func validateSchemaFilename(filename string) error {
+	extension := filepath.Ext(filename)
+	if strings.TrimSpace(filename) == "" || strings.ContainsAny(filename, "/\\:\x00") || filepath.IsAbs(filename) ||
+		extension == "" || extension == "." || len(extension) == len(filename) {
+		return fmt.Errorf("service schema must be a filename with an extension, without directories or drive prefixes")
+	}
+	return nil
 }
 
 // CollectionSchemas maps exact data source keys to schema files, without
@@ -118,15 +191,90 @@ func loadConfig(configPath string) error {
 	}
 
 	var config ProjectConfig
+	config.Database.SchemaDir = "schemas"
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return fmt.Errorf("failed to parse YAML: %w", err)
 	}
-	if len(config.Database.Schemas) > 0 && !strings.EqualFold(config.Database.Type, "MongoDB") {
-		return fmt.Errorf("database.schemas requires database.type MongoDB")
+	absolutePath, err := filepath.Abs(configPath)
+	if err != nil {
+		return fmt.Errorf("resolve project configuration path: %w", err)
+	}
+	if _, err := config.ResolveCollectionSchemas(filepath.Dir(absolutePath)); err != nil {
+		return err
 	}
 
 	currentConfig = &config
 	return nil
+}
+
+// ResolveCollectionSchemas merges legacy schema paths and service schema filenames.
+// It returns absolute paths without reading schema files or inspecting collections.
+func (config *ProjectConfig) ResolveCollectionSchemas(projectRoot string) (map[string]string, error) {
+	if config == nil {
+		return nil, fmt.Errorf("project configuration is required to resolve collection schemas")
+	}
+	schemaDir := config.Database.SchemaDir
+	if schemaDir == "" {
+		schemaDir = "schemas"
+	} else if strings.TrimSpace(schemaDir) == "" {
+		return nil, fmt.Errorf("database.schemaDir must be a nonempty directory path")
+	}
+	paths := make(map[string]string, len(config.Database.Schemas))
+	hasSchemas := len(config.Database.Schemas) > 0
+	for _, service := range config.Services {
+		hasSchemas = hasSchemas || service.Schema != ""
+	}
+	if !hasSchemas {
+		return paths, nil
+	}
+	if !strings.EqualFold(config.Database.Type, "MongoDB") {
+		return nil, fmt.Errorf("collection schemas require database.type MongoDB")
+	}
+	if !filepath.IsAbs(projectRoot) {
+		return nil, fmt.Errorf("an absolute project root is required to resolve collection schemas")
+	}
+	resolve := func(path string) string {
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(projectRoot, path)
+		}
+		return filepath.Clean(path)
+	}
+	add := func(collection, path string) error {
+		if existing, found := paths[collection]; found && existing != path {
+			return fmt.Errorf("conflicting schemas for collection %q: %s and %s", collection, existing, path)
+		}
+		paths[collection] = path
+		return nil
+	}
+	keys := make([]string, 0, len(config.Database.Schemas))
+	for key := range config.Database.Schemas {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		path := config.Database.Schemas[key]
+		if strings.TrimSpace(key) == "" || strings.TrimSpace(path) == "" {
+			return nil, fmt.Errorf("database.schemas requires nonempty collection source keys and schema file paths")
+		}
+		if err := add(key, resolve(path)); err != nil {
+			return nil, err
+		}
+	}
+	for _, service := range config.Services {
+		if service.Schema == "" {
+			continue
+		}
+		if err := validateSchemaFilename(service.Schema); err != nil {
+			return nil, fmt.Errorf("service %q: %w", service.Name, err)
+		}
+		if strings.TrimSpace(service.Collection) == "" {
+			return nil, fmt.Errorf("service %q schema requires an explicit nonempty collection", service.Name)
+		}
+		if err := add(service.Collection, filepath.Join(resolve(schemaDir), service.Schema)); err != nil {
+			return nil, err
+		}
+	}
+	return paths, nil
 }
 
 // GetConfig returns the loaded project configuration
