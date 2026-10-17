@@ -197,15 +197,18 @@ func deployData(collection, env string) error {
 }
 
 func prepareDataDeployment(projectRoot string, cfg *config.ProjectConfig, collection string) (string, *mongo.Deployment, error) {
+	schemas, err := cfg.ResolveCollectionSchemas(projectRoot)
+	if err != nil {
+		return "", nil, err
+	}
 	if collection != "all" {
 		if target, ok := serviceAliases(cfg)[collection]; ok {
 			collection = target
 		}
 	}
-	options := mongo.DeployOptions{ProjectRoot: projectRoot, Schemas: cfg.Database.Schemas}
+	options := mongo.DeployOptions{ProjectRoot: projectRoot, Schemas: schemas}
 	dataDir := filepath.Join(projectRoot, cfg.Database.DataDir)
 	var deployment *mongo.Deployment
-	var err error
 	if collection == "all" {
 		deployment, err = mongo.PrepareAll(dataDir, options)
 	} else {

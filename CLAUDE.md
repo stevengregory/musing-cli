@@ -153,6 +153,8 @@ musing deploy news prod    # Collection or alias to prod
 
 **Aliases**: `serviceAliases()` builds a short-name → collection-key map from API services in `.musing.yaml` that declare an `alias`. The target is the service's `collection` field, or the alias itself when `collection` is omitted. Aliases also feed shell completion.
 
+**Schemas**: A service may set a filename-only `schema` with an explicit `collection`. `Database.SchemaDir` defaults to `schemas` and relative directories resolve from the project root. `ResolveCollectionSchemas` merges these declarations with the deprecated v0.10.0 `database.schemas` map, whose paths remain project-root-relative. Different paths for one collection fail before source preparation. Setting only `schemaDir` does not opt any collection in. Deployment snapshots configured inputs, then preflights every selected schema on MongoDB before any collection changes; configured imports recreate strict/error validators and omit `--drop`. Replacement remains non-atomic after preflight. See README for schema format and migration examples.
+
 **Safety / flow**:
 1. `prod` requires interactive confirmation (`ui.Confirm`, default No).
 2. For `prod`, if the prod DB port is closed, the SSH tunnel is **auto-opened** (`tunnelStart()`) before deploy and **auto-closed** afterward (only if this command opened it).
@@ -204,14 +206,15 @@ Cobra's built-in shell completion generator (`bash`, `zsh`, `fish`, `powershell`
 
 **Types**:
 - `ProjectConfig` — `Services []ServiceConfig`, `Database DatabaseConfig`, `Production *ProductionConfig` (optional), `APIReposDir string` (optional).
-- `ServiceConfig` — `Name`, `Port`, `Type` (`frontend`/`api`/`database`), `Alias` (optional short deploy key), `Collection` (optional data-file key; defaults to `Alias`).
-- `DatabaseConfig` — `Type`, `Name`, `DevPort`, `ProdPort`, `DataDir`.
+- `ServiceConfig` — `Name`, `Port`, `Type` (`frontend`/`api`/`database`), `Alias` (optional short deploy key), `Collection` (optional data-file key; defaults to `Alias`), `Schema` (optional filename with extension; requires explicit `Collection`). Services remain a list.
+- `DatabaseConfig` — `Type`, `Name`, `DevPort`, `ProdPort`, `DataDir`, `SchemaDir` (defaults to `schemas`), `Schemas` (deprecated source-key → schema-path compatibility map).
 - `ProductionConfig` — `Server`, `RemoteDBPort`, `SSHKeyPath`.
 
 **Functions**:
 - `FindProjectRoot()` — searches upward for `.musing.yaml`, loads it, and requires a sibling `compose.yaml`.
 - `MustFindProjectRoot()` — same, but prints a friendly error and exits on failure.
 - `GetConfig()` — returns the loaded singleton (`*ProjectConfig`, or `nil` if not loaded).
+- `(*ProjectConfig).ResolveCollectionSchemas(projectRoot)` — validates declarations and merges service filenames and legacy paths into absolute schema paths keyed by collection source key, without reading files.
 - `GetAPIRepos()` — returns filesystem paths for every `type: api` service, resolved under `resolveAPIReposParent()`.
 - `resolveAPIReposParent(root, apiReposDir)` — empty → project root's parent (sibling layout); `~/` → home-expanded; absolute → as-is; otherwise relative to the project root's parent.
 
@@ -269,6 +272,7 @@ services:
     type: api
     alias: news              # optional: short key → `musing deploy news`
     collection: news-items   # optional: data file or directory key; defaults to alias when omitted
+    schema: news-items.schema.json # optional: filename only; requires explicit collection
 
 database:
   type: MongoDB
@@ -276,6 +280,7 @@ database:
   devPort: 27018
   prodPort: 27019
   dataDir: data
+  schemaDir: schemas         # optional: defaults to schemas; relative to project root
 
 # Optional: production deployment / tunnel / ssh settings
 production:
