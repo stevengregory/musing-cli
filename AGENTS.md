@@ -13,10 +13,15 @@ explicit user instruction overrides it.
 - The entry point is `cmd/musing/main.go`; command registration and global
   banner/version behavior live in `cmd/root.go`.
 - Shared implementation packages live under `internal/`:
-  - `internal/config`: `.musing.yaml` discovery and typed project config.
+  - `internal/config`: `.musing.yaml` discovery, typed project config, and
+    collection schema resolution.
   - `internal/docker`: Docker Desktop and Docker Compose helpers.
   - `internal/health`: port and HTTP health checks.
-  - `internal/mongo`: JSON collection discovery and `mongoimport` deployment.
+  - `internal/mongo`: JSON file and directory collection discovery,
+    `mongoimport` deployment, and schema-validated deploys (`mongosh`
+    preflight).
+  - `internal/process`: per-OS process command-line inspection, used to verify
+    the SSH tunnel before `musing tunnel stop` kills it.
   - `internal/ui`: terminal styling, prompts, and spinner helpers.
 - The CLI is project-agnostic. Avoid hard-coding the current `stevengregory.io`
   stack unless a task explicitly asks for that.
@@ -35,8 +40,8 @@ explicit user instruction overrides it.
 ## Safety Rules
 
 - Do not run production-affecting commands such as `musing deploy ... prod`,
-  `musing tunnel start`, `musing tunnel stop`, `ssh`, `mongoimport`, or `kill`
-  unless the user explicitly asks for that runtime action.
+  `musing tunnel start`, `musing tunnel stop`, `ssh`, `mongoimport`, `mongosh`,
+  or `kill` unless the user explicitly asks for that runtime action.
 - Do not start or stop Docker services with `musing dev`, `docker compose up`,
   or `docker compose down` unless the task requires it or the user asks.
 - Prefer unit tests and pure helper tests over live Docker, SSH, or MongoDB
@@ -100,8 +105,9 @@ explicit user instruction overrides it.
 
 - Keep `README.md` aligned with user-facing commands, flags, config fields, and
   installation instructions.
-- `CLAUDE.md` contains useful background, but verify its details against the
-  live code before copying from it because some implementation notes may drift.
+- `CLAUDE.md` is Claude Code's short brief (commands, safety rules, invariants,
+  gotchas). Keep its rules consistent with this file.
 - When documenting config, include `services`, `database`, optional
-  `production`, optional `apiReposDir`, and service-level `alias`/`collection`
-  only when relevant to the change.
+  `production`, optional `apiReposDir`, service-level
+  `alias`/`collection`/`schema`, and `database.schemaDir` only when relevant to
+  the change.
