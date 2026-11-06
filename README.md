@@ -337,7 +337,8 @@ musing-cli/
 │   ├── config/         # Service configs & ports
 │   ├── docker/         # Docker operations
 │   ├── health/         # Health checks
-│   ├── mongo/          # MongoDB deployment
+│   ├── mongo/          # MongoDB deployment & schema validators
+│   ├── process/        # Process inspection for safe tunnel stop
 │   └── ui/             # Styled output & prompts
 ```
 
